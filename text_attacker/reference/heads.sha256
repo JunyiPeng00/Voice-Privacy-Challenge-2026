@@ -1,0 +1,7 @@
+# sha256 of the released heads (exp/text_attacker/heads/<name>/head.safetensors), projection only.
+# backbone: BAAI/bge-m3 revision 5617a9f61b028005a4858fdac845db406aefb181
+ab06032b9736296a52e2d5c7c65166e33bf90ca1c32cce57dcb1256ee2932642  libri/head.safetensors
+7040d2a5741ce275c9fdd5299f909bc278c938a5a538d6678dad93806474f045  en/head.safetensors
+c5e5c7a962ccee5e4b71d0343cddc97a96f8c0256a34678437b89732bebffe24  de/head.safetensors
+290951263d7c180e70a9081265381ee7d8683fe0eb85465381ddc04a479f5c81  es/head.safetensors
+d351ef1f359d5a77f3851502a88e1e35d2adcaf1525d3567b063e083e1187a7c  fr/head.safetensors
