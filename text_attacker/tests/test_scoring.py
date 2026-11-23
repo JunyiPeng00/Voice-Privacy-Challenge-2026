@@ -41,6 +41,18 @@ class ScoringTest(unittest.TestCase):
         np.testing.assert_array_equal(scores, [0.0, 0.0])
         self.assertEqual(scoring.eer(scores, np.array([1, 0])), 50.0)
 
+    def test_scores_use_the_row_norms_of_sklearn(self):
+        # two trial embeddings one float32 step apart: sklearn's einsum row norms keep their scores apart
+        rng = np.random.default_rng(400)
+        profiles = scoring.build_profiles(rng.normal(size=(1, 256)).astype(np.float32), ["s"])
+        target = rng.normal(size=256).astype(np.float32)
+        target /= np.linalg.norm(target)
+        nontarget = target.copy()
+        nontarget[144] = np.nextafter(nontarget[144], np.float32(np.inf))
+        scores, _, _ = scoring.score_trials(profiles, {"t": target, "n": nontarget}, [("s", "t"), ("s", "n")])
+        self.assertLess(scores[0], scores[1])
+        self.assertEqual(scoring.eer(scores, np.array([1, 0])), 100.0)
+
     def test_no_scorable_trial(self):
         scores, kept, skipped = scoring.score_trials({}, {}, [("a", "u")])
         self.assertEqual((len(scores), kept.tolist(), skipped), (0, [False], 1))

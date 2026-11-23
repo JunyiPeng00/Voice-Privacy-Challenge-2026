@@ -40,9 +40,10 @@ def _cosine_similarity_float32(enrol, test):
     clipped distance rounds tiny similarities to zero, so it is kept as it is.
     """
     def normalise_rows(x):
-        norms = np.sqrt((x * x).sum(axis=1, keepdims=True))
-        norms[norms == 0] = 1
-        return x / norms
+        # as sklearn.preprocessing.normalize: einsum row norms, near-zero norms replaced by 1
+        norms = np.sqrt(np.einsum("ij,ij->i", x, x))
+        norms[norms < 10 * np.finfo(norms.dtype).eps] = 1
+        return x / norms[:, np.newaxis]
 
     similarity = normalise_rows(enrol) @ normalise_rows(test).T
     distance = np.clip(np.float32(1) - similarity, 0, 2)
