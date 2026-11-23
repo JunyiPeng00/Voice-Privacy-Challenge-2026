@@ -61,20 +61,42 @@ class ScoringTest(unittest.TestCase):
             order = rng.permutation(400)
             self.assertEqual(scoring.eer(scores[order], labels[order]), reference)
 
-    def test_eer_matches_threshold_sweep(self):
-        # direct transcription of the SpeechBrain loop
-        rng = np.random.default_rng(1)
-        scores = np.round(rng.normal(size=200) + (np.arange(200) < 60), 2)
-        labels = (np.arange(200) < 60).astype(int)
-        pos, neg = scores[labels == 1], scores[labels == 0]
+    @staticmethod
+    def speechbrain_loop(scores, labels):
+        """speechbrain.utils.metric_stats.EER written out step by step with float32 numpy scalars."""
+        scores = np.asarray(scores, dtype=np.float32)
+        pos, neg = scores[np.asarray(labels) == 1], scores[np.asarray(labels) == 0]
         distinct = np.unique(scores)
-        thresholds = np.sort(np.concatenate([distinct, (distinct[:-1] + distinct[1:]) / 2]))
-        best = None
-        for t in thresholds:
-            frr, far = np.mean(pos <= t), np.mean(neg > t)
-            if best is None or abs(far - frr) < abs(best[0] - best[1]):
-                best = (far, frr)
-        self.assertAlmostEqual(scoring.eer(scores, labels), 100 * (best[0] + best[1]) / 2, places=10)
+        thresholds = np.sort(np.concatenate([distinct, (distinct[:-1] + distinct[1:]) / np.float32(2)]))
+        final_far = final_frr = 0.0
+        for i, t in enumerate(thresholds):
+            frr = np.float32((pos <= t).sum()) / np.float32(len(pos))
+            far = np.float32((neg > t).sum()) / np.float32(len(neg))
+            if float(np.abs(far - frr)) < abs(final_far - final_frr) or i == 0:
+                final_far, final_frr = float(far), float(frr)
+        return 100 * (final_far + final_frr) / 2
+
+    def test_eer_matches_speechbrain_loop(self):
+        rng = np.random.default_rng(1)
+        for n, n_target, decimals in ((200, 60, 2), (37, 5, 1), (500, 250, 3), (64, 7, 8)):
+            labels = (np.arange(n) < n_target).astype(int)
+            scores = np.round(rng.normal(size=n) + labels, decimals)
+            self.assertEqual(scoring.eer(scores, labels), self.speechbrain_loop(scores, labels))
+
+    def test_eer_float32_rates_decide_between_thresholds(self):
+        # in float32 the gaps at thresholds -0.5 and 0 differ in the last bit; SpeechBrain returns 41.67 %
+        scores, labels = np.array([-1.0, -0.5, 0.0, 0.5, 1.0]), np.array([0, 1, 1, 0, 1])
+        self.assertAlmostEqual(scoring.eer(scores, labels), 100 * 5 / 12, places=4)
+        self.assertEqual(scoring.eer(scores, labels), self.speechbrain_loop(scores, labels))
+
+    def test_eer_scores_equal_in_float32_are_tied(self):
+        self.assertEqual(scoring.eer_with_ties(np.array([0.5, 0.50000001]), np.array([0, 1])), (50.0, 1))
+
+    def test_eer_adjacent_float32_scores(self):
+        low = np.float32(0.5)
+        high = np.nextafter(low, np.float32(1))      # the midpoint rounds onto one of the two
+        self.assertEqual(scoring.eer(np.array([low, high]), np.array([0, 1])), 0.0)
+        self.assertEqual(scoring.eer(np.array([low, high]), np.array([1, 0])), 100.0)
 
     def test_eer_rejects_nan_and_single_class(self):
         with self.assertRaises(ValueError):

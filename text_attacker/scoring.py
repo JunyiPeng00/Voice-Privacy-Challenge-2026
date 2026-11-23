@@ -62,15 +62,16 @@ def score_trials(profiles, trial_embeddings, pairs):
 def eer_with_ties(scores, labels):
     """Equal error rate in percent, and the number of trials whose score is not unique.
 
-    Same procedure as ``speechbrain.utils.metric_stats.EER``, which the
-    official ASV evaluation uses: candidate thresholds are the distinct scores
-    and the midpoints between neighbours; a target is rejected when its score
-    is <= the threshold and a nontarget accepted when its score is > the
-    threshold; the first threshold (ascending) with the smallest
-    |FAR - FRR| gives EER = (FAR + FRR) / 2. The result does not depend on the
-    order of the trials.
+    Reproduces ``speechbrain.utils.metric_stats.EER``, which the official ASV
+    evaluation calls, including its float32 arithmetic: scores are float32;
+    candidate thresholds are the distinct scores and the midpoints between
+    neighbours; a target is rejected when its score is <= the threshold and a
+    nontarget accepted when its score is > the threshold; thresholds are
+    visited in ascending order and one replaces the current choice only if
+    its |FAR - FRR| is strictly smaller; EER = (FAR + FRR) / 2. The result
+    does not depend on the order of the trials.
     """
-    scores = np.asarray(scores, dtype=np.float64)
+    scores = np.asarray(scores, dtype=np.float32)
     labels = np.asarray(labels).astype(bool)
     if labels.all() or not labels.any():
         raise ValueError("EER needs at least one target and one nontarget trial")
@@ -78,12 +79,22 @@ def eer_with_ties(scores, labels):
         raise ValueError("Scores contain NaN")
     target, nontarget = np.sort(scores[labels]), np.sort(scores[~labels])
     distinct = np.unique(scores)
-    thresholds = np.sort(np.concatenate([distinct, (distinct[:-1] + distinct[1:]) / 2]))
-    frr = np.searchsorted(target, thresholds, side="right") / len(target)
-    far = 1 - np.searchsorted(nontarget, thresholds, side="right") / len(nontarget)
-    i = int(np.argmin(np.abs(far - frr)))
+    midpoints = (distinct[:-1] + distinct[1:]) / np.float32(2)
+    thresholds = np.sort(np.concatenate([distinct, midpoints]))
+    rejected = np.searchsorted(target, thresholds, side="right")
+    accepted = len(nontarget) - np.searchsorted(nontarget, thresholds, side="right")
+    frr = rejected.astype(np.float32) / np.float32(len(target))
+    far = accepted.astype(np.float32) / np.float32(len(nontarget))
+    # SpeechBrain compares the float32 gap of a candidate with the gap of the
+    # stored choice recomputed in double precision; keep exactly that.
+    gap32 = np.abs(far - frr).astype(np.float64)
+    gap64 = np.abs(far.astype(np.float64) - frr.astype(np.float64))
+    best, best_gap = 0, gap64[0]
+    for i, (candidate, stored) in enumerate(zip(gap32.tolist(), gap64.tolist())):
+        if candidate < best_gap:
+            best, best_gap = i, stored
     ties = int(len(scores) - len(distinct))
-    return 100 * float((far[i] + frr[i]) / 2), ties
+    return 100 * (float(far[best]) + float(frr[best])) / 2, ties
 
 
 def eer(scores, labels):
