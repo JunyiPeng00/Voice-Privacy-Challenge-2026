@@ -54,9 +54,14 @@ class PooledEncoder:
             for name, tensor in sorted(self.model.state_dict().items()):
                 digest.update(name.encode("utf-8"))
                 digest.update(tensor.detach().cpu().contiguous().numpy().tobytes())
+            # the tokenizer: its class, its vocabulary and rules, and the settings applied when it is called
             backend = getattr(self.tokenizer, "backend_tokenizer", None)
-            tokenizer_state = backend.to_str() if backend is not None else type(self.tokenizer).__name__
-            digest.update(tokenizer_state.encode("utf-8"))
+            tokenizer_state = {"class": type(self.tokenizer).__name__,
+                               "backend": backend.to_str() if backend is not None else None}
+            for setting in ("truncation_side", "padding_side", "special_tokens_map", "model_max_length",
+                            "clean_up_tokenization_spaces", "do_lower_case"):
+                tokenizer_state[setting] = getattr(self.tokenizer, setting, None)
+            digest.update(json.dumps(tokenizer_state, sort_keys=True, default=str).encode("utf-8"))
             self._fingerprint = digest.hexdigest()
         return self._fingerprint
 

@@ -53,6 +53,12 @@ class PooledEncoderTest(unittest.TestCase):
         self.assertNotEqual(self.encoder.fingerprint(),
                             PooledEncoder(backbone="fake", tokenizer=FakeTokenizer(), model=changed).fingerprint())
 
+    def test_fingerprint_follows_tokenizer_settings(self):
+        tokenizer = FakeTokenizer()
+        tokenizer.truncation_side = "left"            # same vocabulary, text cut at the other end
+        other = PooledEncoder(backbone="fake", tokenizer=tokenizer, model=FakeModel())
+        self.assertNotEqual(self.encoder.fingerprint(), other.fingerprint())
+
     def test_fingerprint_follows_the_model_configuration(self):
         other = PooledEncoder(backbone="fake", tokenizer=FakeTokenizer(), model=FakeModel(activation="relu"))
         self.assertNotEqual(self.encoder.fingerprint(), other.fingerprint())
