@@ -112,6 +112,9 @@ class ExplainToolTest(unittest.TestCase):
     def test_split_selection(self):
         rows = explain_trials(self.params, "toy_dev", enrolls="_enrolls", trials="_trials_mixed", num=1, encoder=self.encoder)
         self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]["enrol_set"], rows[0]["trial_set"]), ("toy_dev_enrolls", "toy_dev_trials_mixed"))
+        implicit = explain_trials(self.params, "toy_dev", num=1, encoder=self.encoder)
+        self.assertEqual((implicit[0]["enrol_set"], implicit[0]["trial_set"]), ("toy_dev_enrolls", "toy_dev_trials_mixed"))
         with self.assertRaises(ValueError):
             explain_trials(self.params, "toy_dev", trials="_trials_f", encoder=self.encoder)
         self.params["datasets"][0]["trials"] = ["_trials_mixed", "_trials_f"]

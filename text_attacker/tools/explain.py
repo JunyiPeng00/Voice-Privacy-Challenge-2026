@@ -40,7 +40,7 @@ def explain_trials(params, dataset_name, device='cpu', speaker=None, label='all'
         encoder: a ready PooledEncoder to use instead of loading the configured backbone (for tests)
 
     Returns:
-        list of dicts with keys enrol, utt, label, score, threshold, words, importance; score is the score of the
+        list of dicts with keys enrol_set, trial_set, enrol, utt, label, score, threshold, words, importance; score is the score of the
         evaluation, the decision is score > threshold
     """
     attacker_params = params['privacy']['text_attacker']
@@ -107,7 +107,8 @@ def explain_trials(params, dataset_name, device='cpu', speaker=None, label='all'
         words, importance, _ = attribution.word_occlusion(encoder, head, profiles[enrol], trial_text[utt],
                                                           max_length=meta['max_length'], batch_size=batch_size)
         # the score and the decision are those of the evaluation, not of the recomputation above
-        rows.append({'enrol': enrol, 'utt': utt, 'label': int(result['labels'][i]), 'score': float(result['scores'][i]),
+        rows.append({'enrol_set': enrol_dir.name, 'trial_set': trial_dir.name,
+                     'enrol': enrol, 'utt': utt, 'label': int(result['labels'][i]), 'score': float(result['scores'][i]),
                      'threshold': threshold, 'words': words, 'importance': importance})
     return rows
 
@@ -146,8 +147,9 @@ if __name__ == '__main__':
     out_dir = Path(args.out_dir) if args.out_dir else params['exp_dir'] / 'text_attacker' / 'explain'
     out_dir.mkdir(parents=True, exist_ok=True)
     suffix = (params.get('anon_data_suffix') or '') if args.trial_text == 'asr_anon' else ''
-    name = f'{args.dataset}{args.enrolls or ""}{args.trials or ""}_{args.speaker or "all"}_{args.label}_{args.trial_text}{suffix}'
-    title = f'Text attacker: {args.dataset}, enrollment speaker {args.speaker or "all"}, {args.label} trials ({args.trial_text})'
+    # named after the enrollment and trial sets that were used, as the result directories of the evaluation
+    name = f'{rows[0]["enrol_set"]}-{rows[0]["trial_set"]}__{args.trial_text}{suffix}_{args.speaker or "all"}_{args.label}'
+    title = f'Text attacker: {rows[0]["enrol_set"]} - {rows[0]["trial_set"]}, enrollment speaker {args.speaker or "all"}, {args.label} trials ({args.trial_text})'
     (out_dir / f'{name}.html').write_text(attribution.render_html(rows, title=title), encoding='utf-8')
     write_table(out_dir / f'{name}.tsv', rows)
     for row in rows:
