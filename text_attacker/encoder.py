@@ -5,6 +5,8 @@ encoder (padding excluded). The encoder is never trained and always runs in
 float32: half precision changes the EER of the released heads by several
 points.
 """
+import hashlib
+
 import numpy as np
 import torch
 
@@ -32,10 +34,24 @@ class PooledEncoder:
         dtypes = {p.dtype for p in self.model.parameters()}
         if dtypes - {torch.float32}:
             raise ValueError(f"The text encoder must run in float32, found {sorted(str(d) for d in dtypes)}")
+        self._fingerprint = None
 
     def fingerprint(self):
-        """Identifies the features this encoder produces; part of the cache key."""
-        return f"{self.backbone}@{self.revision or 'local'}|mean-pool|float32"
+        """Identifies the features this encoder produces; part of the cache key.
+
+        It is a hash of the loaded weights and of the tokenizer, so a backbone
+        directory whose files were replaced gives a different fingerprint.
+        """
+        if self._fingerprint is None:
+            digest = hashlib.sha256(b"mean-pool|float32")
+            for name, tensor in sorted(self.model.state_dict().items()):
+                digest.update(name.encode("utf-8"))
+                digest.update(tensor.detach().cpu().contiguous().numpy().tobytes())
+            backend = getattr(self.tokenizer, "backend_tokenizer", None)
+            tokenizer_state = backend.to_str() if backend is not None else type(self.tokenizer).__name__
+            digest.update(tokenizer_state.encode("utf-8"))
+            self._fingerprint = digest.hexdigest()
+        return self._fingerprint
 
     def pool(self, texts, max_length=96, batch_size=32):
         """Mean-pooled last-layer states of each text.

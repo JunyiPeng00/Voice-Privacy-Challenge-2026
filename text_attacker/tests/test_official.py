@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 try:
+    import numpy as np
     import torch
     from text_attacker import official
     from text_attacker.encoder import PooledEncoder
@@ -114,6 +115,29 @@ class OfficialAdapterTest(unittest.TestCase):
 
     def test_incomplete_hypothesis_file_is_rejected(self):
         self.write("exp/asr/toy_dev_asr/text", "t1 the ship sailed\n")
+        with self.assertRaises(ValueError):
+            self.run_attacker()
+
+    def test_force_compute_replaces_stale_features(self):
+        self.write("config.yaml", CONFIG.format(root=self.root, suffix="", on_missing="skip"))
+        params = parse_yaml(self.root / "config.yaml")
+        first = official.evaluate_text_attacker(params, device="cpu", encoder=self.encoder)
+        scores_file = self.root / "exp/text_attacker/results/toy_dev_enrolls-toy_dev_trials_mixed__ref/scores"
+        scores = scores_file.read_text()
+        for cache_file in (self.root / "exp/text_attacker/feat_cache").glob("pooled_*.npy"):
+            stale = np.load(cache_file)
+            np.save(cache_file, stale[::-1].copy())
+        official.evaluate_text_attacker(parse_yaml(self.root / "config.yaml"), device="cpu", encoder=self.encoder)
+        self.assertNotEqual(scores_file.read_text(), scores)                    # the stale features were used
+        official.evaluate_text_attacker(parse_yaml(self.root / "config.yaml"), device="cpu", encoder=self.encoder,
+                                        force_compute=True)
+        self.assertEqual(scores_file.read_text(), scores)
+        official.evaluate_text_attacker(parse_yaml(self.root / "config.yaml"), device="cpu", encoder=self.encoder)
+        self.assertEqual(scores_file.read_text(), scores)                       # and the cache was repaired
+        self.assertEqual(len(first), 1)
+
+    def test_malformed_utt2spk_is_rejected(self):
+        self.write("data/toy_dev_enrolls/utt2spk", "s1-a s1 extra\ns1-b s1\ns2-a s2\ns2-b s2\n")
         with self.assertRaises(ValueError):
             self.run_attacker()
 

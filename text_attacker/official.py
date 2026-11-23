@@ -110,7 +110,7 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
     Args:
         params: config parsed by ``utils.parse_yaml``
         device: device for the text encoder and the heads
-        force_compute: recompute pooled features instead of reading them from the cache
+        force_compute: recompute the cached pooled features and replace them
         encoder: a ready PooledEncoder to use instead of loading the configured backbone (for tests)
 
     Returns:
@@ -123,7 +123,7 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
     anon_data_suffix = params.get('anon_data_suffix') or ''
     track = params.get('track', '')
     results_dir = eval_params['results_dir']
-    cache_dir = None if force_compute else eval_params.get('cache_dir')
+    cache_dir = eval_params.get('cache_dir')
     on_missing = eval_params.get('on_missing_hypothesis', 'skip')
     if on_missing not in ('skip', 'error'):
         raise ValueError(f'on_missing_hypothesis must be "skip" or "error", got "{on_missing}"')
@@ -167,6 +167,10 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
             enrol_text = read_kaldi_format(enrol_dir / 'text', values_as_string=True)
             enrol_text = {utt: text if isinstance(text, str) else '' for utt, text in enrol_text.items()}
             enrol_utt2spk = read_kaldi_format(enrol_dir / 'utt2spk')
+            malformed = [utt for utt in enrol_text if not isinstance(enrol_utt2spk.get(utt), str)]
+            if malformed:
+                raise ValueError(f'{enrol_dir / "utt2spk"} has no single speaker for {len(malformed)} utterances of '
+                                 f'{enrol_dir / "text"}, e.g. {malformed[:3]}.')
             # as in the ASV evaluation, the trial list is always the one of the original trial directory
             pairs, labels = kaldi_io.read_trials(trial_dir / 'trials')
             needed = sorted({utt for _, utt in pairs})
@@ -185,7 +189,7 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
                 result = pipeline.evaluate_pair(enrol_text, enrol_utt2spk, trial_text, pairs, labels, encoder, head,
                                                 max_length=meta['max_length'],
                                                 batch_size=eval_params.get('eval_batchsize', 32),
-                                                cache_dir=cache_dir, eer_fn=eer_fn)
+                                                cache_dir=cache_dir, refresh=force_compute, eer_fn=eer_fn)
                 if abs(result['eer'] - result['eer_numpy']) > 1e-3:
                     logger.warning(f'SpeechBrain EER {result["eer"]:.4f} and numpy EER {result["eer_numpy"]:.4f} differ '
                                    f'({result["n_ties"]} tied scores).')

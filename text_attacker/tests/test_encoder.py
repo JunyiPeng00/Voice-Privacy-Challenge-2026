@@ -44,9 +44,14 @@ class PooledEncoderTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             PooledEncoder(backbone="fake", tokenizer=FakeTokenizer(), model=FakeModel().half())
 
-    def test_fingerprint_names_backbone_and_revision(self):
-        other = PooledEncoder(backbone="fake", revision="abc", tokenizer=FakeTokenizer(), model=FakeModel())
-        self.assertNotEqual(self.encoder.fingerprint(), other.fingerprint())
+    def test_fingerprint_follows_weights_not_names(self):
+        renamed = PooledEncoder(backbone="other-name", revision="abc", tokenizer=FakeTokenizer(), model=FakeModel())
+        self.assertEqual(self.encoder.fingerprint(), renamed.fingerprint())
+        changed = FakeModel()
+        with torch.no_grad():
+            changed.embedding.weight[0, 0] += 1.0
+        self.assertNotEqual(self.encoder.fingerprint(),
+                            PooledEncoder(backbone="fake", tokenizer=FakeTokenizer(), model=changed).fingerprint())
 
 
 if __name__ == "__main__":

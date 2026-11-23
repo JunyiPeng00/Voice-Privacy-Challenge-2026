@@ -52,6 +52,42 @@ class PipelineTest(unittest.TestCase):
         self.assertGreater(len(self.tokenizer.seen), calls)              # new text, new key
         self.assertEqual(len(list(self.dir.glob("pooled_*.npy"))), 2)
 
+    def test_cache_key_separates_ambiguous_inputs(self):
+        one = pipeline._cache_key(self.encoder, ["a"], ["x\nb\ty"], 96)
+        two = pipeline._cache_key(self.encoder, ["a", "b"], ["x", "y"], 96)
+        self.assertNotEqual(one, two)
+        self.assertNotEqual(two, pipeline._cache_key(self.encoder, ["a", "b"], ["x", "y"], 32))
+
+    def test_cache_key_follows_the_encoder_weights(self):
+        other = PooledEncoder(backbone="fake", tokenizer=FakeTokenizer(), model=FakeModel())
+        self.assertEqual(self.encoder.fingerprint(), other.fingerprint())     # same weights, same features
+        with torch.no_grad():
+            other.model.embedding.weight[3, 0] += 1.0
+        other._fingerprint = None
+        self.assertNotEqual(self.encoder.fingerprint(), other.fingerprint())
+
+    def test_broken_cache_entry_is_recomputed_and_replaced(self):
+        ids, texts = sorted(ENROL_TEXT), [ENROL_TEXT[i] for i in sorted(ENROL_TEXT)]
+        good = pipeline.cached_pool(self.encoder, ids, texts, cache_dir=self.dir)
+        cache_file = next(self.dir.glob("pooled_*.npy"))
+        for broken in (b"", cache_file.read_bytes()[:100]):                    # empty and truncated files
+            cache_file.write_bytes(broken)
+            np.testing.assert_array_equal(pipeline.cached_pool(self.encoder, ids, texts, cache_dir=self.dir), good)
+            np.testing.assert_array_equal(np.load(cache_file), good)
+        np.save(cache_file, good[:2])                                          # wrong number of rows
+        np.testing.assert_array_equal(pipeline.cached_pool(self.encoder, ids, texts, cache_dir=self.dir), good)
+        self.assertEqual([p.name for p in self.dir.iterdir()], [cache_file.name])   # no temporary file left
+
+    def test_refresh_replaces_the_cache_entry(self):
+        ids, texts = sorted(ENROL_TEXT), [ENROL_TEXT[i] for i in sorted(ENROL_TEXT)]
+        good = pipeline.cached_pool(self.encoder, ids, texts, cache_dir=self.dir)
+        cache_file = next(self.dir.glob("pooled_*.npy"))
+        np.save(cache_file, np.zeros_like(good))                               # a stale but well-formed entry
+        np.testing.assert_array_equal(pipeline.cached_pool(self.encoder, ids, texts, cache_dir=self.dir), 0 * good)
+        np.testing.assert_array_equal(
+            pipeline.cached_pool(self.encoder, ids, texts, cache_dir=self.dir, refresh=True), good)
+        np.testing.assert_array_equal(np.load(cache_file), good)
+
     def test_evaluate_pair(self):
         result = pipeline.evaluate_pair(ENROL_TEXT, ENROL_UTT2SPK, TRIAL_TEXT, PAIRS, LABELS, self.encoder, self.head)
         self.assertEqual((result["n_trials"], result["n_target"], result["n_nontarget"], result["n_skipped"]), (4, 2, 2, 1))
