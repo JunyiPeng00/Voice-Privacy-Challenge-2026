@@ -105,6 +105,26 @@ class ExplainToolTest(unittest.TestCase):
                               encoder=self.encoder)
         self.assertEqual(rows[0]["words"], ["THE", "SHIP", "SAILED", "AWAY"])
 
+    def test_anonymized_condition_needs_a_suffix(self):
+        with self.assertRaises(ValueError):
+            explain_trials(self.params, "toy_dev", trial_source="asr_anon", encoder=self.encoder)
+
+    def test_split_selection(self):
+        rows = explain_trials(self.params, "toy_dev", enrolls="_enrolls", trials="_trials_mixed", num=1, encoder=self.encoder)
+        self.assertEqual(len(rows), 1)
+        with self.assertRaises(ValueError):
+            explain_trials(self.params, "toy_dev", trials="_trials_f", encoder=self.encoder)
+        self.params["datasets"][0]["trials"] = ["_trials_mixed", "_trials_f"]
+        with self.assertRaises(ValueError):                                    # ambiguous without a choice
+            explain_trials(self.params, "toy_dev", encoder=self.encoder)
+
+    def test_reported_score_is_the_evaluation_score(self):
+        import unittest.mock as mock
+        shifted = lambda *a, **k: (["X"], np.array([0.0]), 123.0)
+        with mock.patch("text_attacker.tools.explain.attribution.word_occlusion", shifted):
+            rows = explain_trials(self.params, "toy_dev", num=2, encoder=self.encoder)
+        self.assertTrue(all(row["score"] != 123.0 for row in rows))
+
     def test_table(self):
         rows = explain_trials(self.params, "toy_dev", speaker="s2", label="target", encoder=self.encoder)
         write_table(self.root / "words.tsv", rows)

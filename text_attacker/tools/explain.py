@@ -24,7 +24,7 @@ logger = setup_logger(__name__)
 
 
 def explain_trials(params, dataset_name, device='cpu', speaker=None, label='all', num=5, order='list',
-                   trial_source='ref', encoder=None):
+                   trial_source='ref', enrolls=None, trials=None, encoder=None):
     """Explain trials of one dataset.
 
     Args:
@@ -35,18 +35,31 @@ def explain_trials(params, dataset_name, device='cpu', speaker=None, label='all'
         num: number of trials to explain
         order: 'list' (order of the trial list), 'score' (highest scores first) or 'random'
         trial_source: 'ref', 'asr_orig' or 'asr_anon'
+        enrolls, trials: enrollment and trial split of the dataset (e.g. '_enrolls', '_trials_mixed'); needed only if
+            the dataset has more than one
         encoder: a ready PooledEncoder to use instead of loading the configured backbone (for tests)
 
     Returns:
-        list of dicts with keys enrol, utt, label, score, threshold, words, importance
+        list of dicts with keys enrol, utt, label, score, threshold, words, importance; score is the score of the
+        evaluation, the decision is score > threshold
     """
     attacker_params = params['privacy']['text_attacker']
     eval_params = attacker_params['evaluation']
     dataset = next((d for d in params['datasets'] if d['name'] == dataset_name), None)
     if dataset is None or 'enrolls' not in dataset or 'trials' not in dataset:
         raise ValueError(f'{dataset_name} is missing an enrolls/trials split')
-    enrol_dir = params['data_dir'] / f'{dataset["data"]}{dataset["enrolls"][0]}'
-    trial_dir = params['data_dir'] / f'{dataset["data"]}{dataset["trials"][0]}'
+    splits = {}
+    for kind, chosen in (('enrolls', enrolls), ('trials', trials)):
+        if chosen is None and len(dataset[kind]) > 1:
+            raise ValueError(f'{dataset_name} has several {kind} splits {list(dataset[kind])}, choose one')
+        if chosen is not None and chosen not in dataset[kind]:
+            raise ValueError(f'{dataset_name} has no {kind} split "{chosen}", only {list(dataset[kind])}')
+        splits[kind] = dataset[kind][0] if chosen is None else chosen
+    enrol_dir = params['data_dir'] / f'{dataset["data"]}{splits["enrolls"]}'
+    trial_dir = params['data_dir'] / f'{dataset["data"]}{splits["trials"]}'
+    anon_data_suffix = params.get('anon_data_suffix') or ''
+    if trial_source == 'asr_anon' and not anon_data_suffix:
+        raise ValueError('The trial text "asr_anon" needs an anon_data_suffix (e.g. --overwrite \'{"anon_data_suffix": "_mcadams"}\')')
 
     if encoder is None:
         backbone = str(attacker_params['backbone'])
@@ -64,7 +77,7 @@ def explain_trials(params, dataset_name, device='cpu', speaker=None, label='all'
     pairs, labels = kaldi_io.read_trials(trial_dir / 'trials')
     needed = sorted({utt for _, utt in pairs})
     trial_text, _ = _trial_text(trial_source, trial_dir, dataset_name, eval_params.get('asr_text_dir'),
-                                params.get('anon_data_suffix') or '', hyp_norm, needed, on_missing='error')
+                                anon_data_suffix, hyp_norm, needed, on_missing='error')
 
     # score the whole dataset to get the EER threshold the decisions refer to
     result = pipeline.evaluate_pair(enrol_text, enrol_utt2spk, trial_text, pairs, labels, encoder, head,
@@ -91,9 +104,10 @@ def explain_trials(params, dataset_name, device='cpu', speaker=None, label='all'
     rows = []
     for i in selected:
         enrol, utt = result['pairs'][i]
-        words, importance, score = attribution.word_occlusion(encoder, head, profiles[enrol], trial_text[utt],
-                                                              max_length=meta['max_length'], batch_size=batch_size)
-        rows.append({'enrol': enrol, 'utt': utt, 'label': int(result['labels'][i]), 'score': score,
+        words, importance, _ = attribution.word_occlusion(encoder, head, profiles[enrol], trial_text[utt],
+                                                          max_length=meta['max_length'], batch_size=batch_size)
+        # the score and the decision are those of the evaluation, not of the recomputation above
+        rows.append({'enrol': enrol, 'utt': utt, 'label': int(result['labels'][i]), 'score': float(result['scores'][i]),
                      'threshold': threshold, 'words': words, 'importance': importance})
     return rows
 
@@ -118,6 +132,8 @@ if __name__ == '__main__':
     parser.add_argument('--num', type=int, default=5, help='number of trials to explain')
     parser.add_argument('--order', default='list', choices=['list', 'score', 'random'])
     parser.add_argument('--trial_text', default='ref', choices=['ref', 'asr_orig', 'asr_anon'])
+    parser.add_argument('--enrolls', default=None, help='enrollment split, if the dataset has several')
+    parser.add_argument('--trials', default=None, help='trial split, if the dataset has several')
     parser.add_argument('--out_dir', default=None, help='default: <exp_dir>/text_attacker/explain')
     args = parser.parse_args()
 
@@ -125,12 +141,12 @@ if __name__ == '__main__':
     params = parse_yaml(Path(args.config), overrides=json.loads(args.overwrite))
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     rows = explain_trials(params, args.dataset, device=device, speaker=args.speaker, label=args.label, num=args.num,
-                          order=args.order, trial_source=args.trial_text)
+                          order=args.order, trial_source=args.trial_text, enrolls=args.enrolls, trials=args.trials)
 
     out_dir = Path(args.out_dir) if args.out_dir else params['exp_dir'] / 'text_attacker' / 'explain'
     out_dir.mkdir(parents=True, exist_ok=True)
     suffix = (params.get('anon_data_suffix') or '') if args.trial_text == 'asr_anon' else ''
-    name = f'{args.dataset}_{args.speaker or "all"}_{args.label}_{args.trial_text}{suffix}'
+    name = f'{args.dataset}{args.enrolls or ""}{args.trials or ""}_{args.speaker or "all"}_{args.label}_{args.trial_text}{suffix}'
     title = f'Text attacker: {args.dataset}, enrollment speaker {args.speaker or "all"}, {args.label} trials ({args.trial_text})'
     (out_dir / f'{name}.html').write_text(attribution.render_html(rows, title=title), encoding='utf-8')
     write_table(out_dir / f'{name}.tsv', rows)
