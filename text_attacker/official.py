@@ -167,7 +167,8 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
             enrol_text = read_kaldi_format(enrol_dir / 'text', values_as_string=True)
             enrol_text = {utt: text if isinstance(text, str) else '' for utt, text in enrol_text.items()}
             enrol_utt2spk = read_kaldi_format(enrol_dir / 'utt2spk')
-            malformed = [utt for utt in enrol_text if not isinstance(enrol_utt2spk.get(utt), str)]
+            malformed = [utt for utt in enrol_text
+                         if not isinstance(enrol_utt2spk.get(utt), str) or not enrol_utt2spk[utt].strip()]
             if malformed:
                 raise ValueError(f'{enrol_dir / "utt2spk"} has no single speaker for {len(malformed)} utterances of '
                                  f'{enrol_dir / "text"}, e.g. {malformed[:3]}.')

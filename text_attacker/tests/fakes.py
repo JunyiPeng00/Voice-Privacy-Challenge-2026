@@ -24,10 +24,12 @@ class FakeTokenizer:
 
 
 class FakeModel(torch.nn.Module):
-    def __init__(self, hidden=16):
+    def __init__(self, hidden=16, activation="gelu"):
         super().__init__()
         torch.manual_seed(0)
         self.embedding = torch.nn.Embedding(51, hidden)
+        settings = {"hidden_size": hidden, "hidden_act": activation, "_name_or_path": "/somewhere", "transformers_version": "0"}
+        self.config = SimpleNamespace(to_dict=lambda: dict(settings))
 
     def forward(self, input_ids, attention_mask):
         return SimpleNamespace(last_hidden_state=self.embedding(input_ids))

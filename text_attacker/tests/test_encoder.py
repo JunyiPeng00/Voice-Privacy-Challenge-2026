@@ -53,6 +53,10 @@ class PooledEncoderTest(unittest.TestCase):
         self.assertNotEqual(self.encoder.fingerprint(),
                             PooledEncoder(backbone="fake", tokenizer=FakeTokenizer(), model=changed).fingerprint())
 
+    def test_fingerprint_follows_the_model_configuration(self):
+        other = PooledEncoder(backbone="fake", tokenizer=FakeTokenizer(), model=FakeModel(activation="relu"))
+        self.assertNotEqual(self.encoder.fingerprint(), other.fingerprint())
+
 
 if __name__ == "__main__":
     unittest.main()

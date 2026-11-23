@@ -6,6 +6,7 @@ float32: half precision changes the EER of the released heads by several
 points.
 """
 import hashlib
+import json
 
 import numpy as np
 import torch
@@ -39,11 +40,17 @@ class PooledEncoder:
     def fingerprint(self):
         """Identifies the features this encoder produces; part of the cache key.
 
-        It is a hash of the loaded weights and of the tokenizer, so a backbone
+        It is a hash of the model configuration, the loaded weights and the tokenizer, so a backbone
         directory whose files were replaced gives a different fingerprint.
         """
         if self._fingerprint is None:
             digest = hashlib.sha256(b"mean-pool|float32")
+            # the architecture: model class and configuration, without fields that only record where it came from
+            config = getattr(self.model, "config", None)
+            settings = {k: v for k, v in config.to_dict().items()
+                        if not k.startswith("_") and k != "transformers_version"} if config is not None else {}
+            digest.update(type(self.model).__name__.encode("utf-8"))
+            digest.update(json.dumps(settings, sort_keys=True, default=str).encode("utf-8"))
             for name, tensor in sorted(self.model.state_dict().items()):
                 digest.update(name.encode("utf-8"))
                 digest.update(tensor.detach().cpu().contiguous().numpy().tobytes())

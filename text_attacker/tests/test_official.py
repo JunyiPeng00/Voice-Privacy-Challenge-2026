@@ -137,9 +137,10 @@ class OfficialAdapterTest(unittest.TestCase):
         self.assertEqual(len(first), 1)
 
     def test_malformed_utt2spk_is_rejected(self):
-        self.write("data/toy_dev_enrolls/utt2spk", "s1-a s1 extra\ns1-b s1\ns2-a s2\ns2-b s2\n")
-        with self.assertRaises(ValueError):
-            self.run_attacker()
+        for first_line in ("s1-a s1 extra", "s1-a", ""):               # two speaker fields, none, line missing
+            self.write("data/toy_dev_enrolls/utt2spk", f"{first_line}\ns1-b s1\ns2-a s2\ns2-b s2\n")
+            with self.assertRaises(ValueError):
+                self.run_attacker()
 
     def test_only_reference_enrolment_is_supported(self):
         self.write("config.yaml", CONFIG.format(root=self.root, suffix="", on_missing="skip").replace("[ref, asr_orig]", "[asr_orig, ref]"))
