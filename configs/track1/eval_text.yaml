@@ -9,7 +9,7 @@ anon_data_suffix: '' # '' evaluates reference transcripts (and ASR transcripts o
 
 text_backbone: BAAI/bge-m3 # Hugging Face model id or local directory
 text_backbone_revision: 5617a9f61b028005a4858fdac845db406aefb181
-hyp_norm: head # normalisation of ASR transcripts: head (the convention the head was trained on), none, upper_letters or lower_letters
+hyp_norm: head # normalization of ASR transcripts: head (the convention the head was trained on), none, upper_letters or lower_letters
 
 datasets:
   - name: libri_dev
@@ -34,7 +34,7 @@ privacy:
       results_dir: !ref <exp_dir>/text_attacker/results/<track>
       cache_dir: !ref <exp_dir>/text_attacker/feat_cache # pooled encoder features, keyed by the text
       asr_text_dir: !ref <exp_dir>/asr # results_dir of the ASR evaluation
-      scenarios: # [enrolment text, trial text]
+      scenarios: # [enrollment text, trial text]
         - [ref, ref]
         - [ref, asr_orig]
         - [ref, asr_anon]
