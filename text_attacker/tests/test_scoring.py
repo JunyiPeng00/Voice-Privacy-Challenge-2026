@@ -6,7 +6,7 @@ from text_attacker import scoring
 
 
 class ScoringTest(unittest.TestCase):
-    def test_profile_is_normalised_mean_of_unit_embeddings(self):
+    def test_profile_is_normalized_mean_of_unit_embeddings(self):
         emb = np.array([[2.0, 0.0], [0.0, 5.0], [0.0, 3.0]])
         profiles = scoring.build_profiles(emb, ["a", "a", "b"])
         np.testing.assert_allclose(profiles["a"], np.array([1.0, 1.0]) / np.sqrt(2))
@@ -122,6 +122,15 @@ class ScoringTest(unittest.TestCase):
         high = np.nextafter(low, np.float32(1))      # the midpoint rounds onto one of the two
         self.assertEqual(scoring.eer(np.array([low, high]), np.array([0, 1])), 0.0)
         self.assertEqual(scoring.eer(np.array([low, high]), np.array([1, 0])), 100.0)
+
+    def test_eer_threshold_is_the_operating_point(self):
+        rng = np.random.default_rng(2)
+        labels = (np.arange(300) < 100).astype(int)
+        scores = (rng.normal(size=300) + labels).astype(np.float32)
+        threshold = scoring.eer_threshold(scores, labels)
+        frr = np.mean(scores[labels == 1] <= threshold)
+        far = np.mean(scores[labels == 0] > threshold)
+        self.assertAlmostEqual(100 * (far + frr) / 2, scoring.eer(scores, labels), places=4)
 
     def test_eer_rejects_nan_and_single_class(self):
         with self.assertRaises(ValueError):

@@ -1,4 +1,4 @@
-# Track 1 EERs of the released libri head with ASR transcripts as trial text (enrolment: reference transcripts),
+# Track 1 EERs of the released libri head with ASR transcripts as trial text (enrollment: reference transcripts),
 # on the official trial list of 2026-09-01. 'original' is the original audio; the other rows are anonymized audio of
 # six systems (the four challenge baselines B2-B5, kNN-VC and a Whisper-to-TTS cascade) as generated for the
 # regression tests of this package; another run of a system will not give exactly these numbers.

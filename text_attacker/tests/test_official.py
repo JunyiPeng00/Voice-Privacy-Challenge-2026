@@ -142,7 +142,7 @@ class OfficialAdapterTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.run_attacker()
 
-    def test_only_reference_enrolment_is_supported(self):
+    def test_only_reference_enrollment_is_supported(self):
         self.write("config.yaml", CONFIG.format(root=self.root, suffix="", on_missing="skip").replace("[ref, asr_orig]", "[asr_orig, ref]"))
         with self.assertRaises(ValueError):
             official.evaluate_text_attacker(parse_yaml(self.root / "config.yaml"), device="cpu", encoder=self.encoder)

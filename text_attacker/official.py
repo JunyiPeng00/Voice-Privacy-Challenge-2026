@@ -4,11 +4,11 @@ This is the only module of the package that knows about config files,
 dataset names, the ``data`` and ``exp`` directories and the anonymization
 suffix. Everything below it works on plain dicts and arrays.
 
-Attack conditions are pairs [enrolment text, trial text]:
+Attack conditions are pairs [enrollment text, trial text]:
     ref        reference transcripts (the ``text`` file of the data directory)
     asr_orig   ASR transcripts of the original trial audio
     asr_anon   ASR transcripts of the anonymized trial audio
-Enrolment always uses reference transcripts. The ASR transcripts are the
+Enrollment always uses reference transcripts. The ASR transcripts are the
 ``text`` files that the ASR evaluation of run_evaluation.py writes.
 """
 import itertools
@@ -98,7 +98,7 @@ def _trial_text(source, trial_dir, dataset_name, asr_text_dir, anon_data_suffix,
         # no fallback to the reference: the attacker must not see text it would not have
         raise ValueError(f'{hyp_file} lacks {len(missing)} of {len(needed)} trial utterances, e.g. {missing[:3]}.')
     raw = {utt: hypotheses[utt] if isinstance(hypotheses[utt], str) else '' for utt in needed}
-    texts = {utt: textnorm.normalise(text, hyp_norm) for utt, text in raw.items()}
+    texts = {utt: textnorm.normalize(text, hyp_norm) for utt, text in raw.items()}
     stats = {'n_empty_hyp': sum(not text.strip() for text in texts.values()),
              'n_digit_chars': sum(textnorm.count_digit_chars(text) for text in raw.values())}
     return texts, stats
@@ -114,7 +114,7 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
         encoder: a ready PooledEncoder to use instead of loading the configured backbone (for tests)
 
     Returns:
-        DataFrame with one row per (enrolment set, trial set, condition); also written to
+        DataFrame with one row per (enrollment set, trial set, condition); also written to
         ``results_dir/results<anon_data_suffix>.csv``.
     """
     attacker_params = params['privacy']['text_attacker']
@@ -131,7 +131,7 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
     scenarios = [tuple(s) for s in eval_params.get('scenarios', [['ref', 'ref']])]
     for enrol_source, trial_source in scenarios:
         if enrol_source != 'ref' or trial_source not in TRIAL_SOURCES:
-            raise ValueError(f'Unsupported condition [{enrol_source}, {trial_source}]: enrolment must be "ref" and '
+            raise ValueError(f'Unsupported condition [{enrol_source}, {trial_source}]: enrollment must be "ref" and '
                              f'the trial text one of {TRIAL_SOURCES}.')
     if not anon_data_suffix:
         scenarios = [s for s in scenarios if s[1] != 'asr_anon']

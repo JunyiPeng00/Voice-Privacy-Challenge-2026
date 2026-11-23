@@ -75,7 +75,7 @@ class HeadTest(unittest.TestCase):
         self.assertTrue(torch.all(margin[is_target] < plain[is_target]))
         torch.testing.assert_close(margin[~is_target], plain[~is_target])
 
-    def test_same_initialisation_and_outputs_as_the_original(self):
+    def test_same_initialization_and_outputs_as_the_original(self):
         features = torch.randn(6, 1024)
         targets = torch.tensor([0, 1, 2, 3, 4, 5])
         for objective, aam in (("softmax", False), ("aam-softmax", True)):

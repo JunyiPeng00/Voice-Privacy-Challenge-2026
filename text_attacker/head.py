@@ -29,7 +29,7 @@ class Head(nn.Module):
         self.scale = scale
         self.margin = margin
         # the parameters are created in the same order as in the original
-        # training code, so that a seed gives the same initialisation
+        # training code, so that a seed gives the same initialization
         self.project = nn.Sequential(nn.Linear(hidden, bottleneck), nn.ReLU(), nn.Linear(bottleneck, embedding))
         if objective == "aam-softmax":
             self.weight = nn.Parameter(torch.empty(speakers, embedding))

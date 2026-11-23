@@ -82,11 +82,11 @@ def embed_texts(encoder, head, texts, max_length=96, batch_size=32, cache_dir=No
 
 def evaluate_pair(enrol_text, enrol_utt2spk, trial_text, pairs, labels, encoder, head, max_length=96,
                   batch_size=32, cache_dir=None, refresh=False, eer_fn=None):
-    """Score one enrolment set against one trial set.
+    """Score one enrollment set against one trial set.
 
     Args:
-        enrol_text: dict enrolment utterance id -> text
-        enrol_utt2spk: dict enrolment utterance id -> speaker id
+        enrol_text: dict enrollment utterance id -> text
+        enrol_utt2spk: dict enrollment utterance id -> speaker id
         trial_text: dict trial utterance id -> text; trials whose utterance is missing here are skipped
         pairs, labels: trial list as returned by ``kaldi_io.read_trials``
         cache_dir, refresh: see ``cached_pool``

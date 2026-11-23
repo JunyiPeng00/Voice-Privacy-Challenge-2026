@@ -1,6 +1,6 @@
-"""Text normalisation for ASR hypotheses.
+"""Text normalization for ASR hypotheses.
 
-Reference transcripts are fed to the attacker as they are. Normalisation is
+Reference transcripts are fed to the attacker as they are. Normalization is
 applied to ASR hypotheses only, to bring them to the convention of the text
 each head was trained on:
 
@@ -28,8 +28,8 @@ def _canonical(text):
     return unicodedata.normalize("NFC", text).replace("’", "'")
 
 
-def normalise(text, mode="none"):
-    """Normalise one hypothesis. See the module docstring for the modes."""
+def normalize(text, mode="none"):
+    """Normalize one hypothesis. See the module docstring for the modes."""
     if mode == "none":
         return text
     if mode == "upper_letters":
@@ -42,7 +42,7 @@ def normalise(text, mode="none"):
         text = _canonical(text).lower()
         kept = "".join(ch for ch in text if _KEEP_LOWER.fullmatch(ch))
         return " ".join(kept.split())
-    raise ValueError(f"Unknown normalisation mode '{mode}', expected one of {MODES}")
+    raise ValueError(f"Unknown normalization mode '{mode}', expected one of {MODES}")
 
 
 def count_digit_chars(text):
@@ -51,11 +51,11 @@ def count_digit_chars(text):
 
 
 def training_filter(text):
-    """Normalise a training transcript of a Track 2 head.
+    """Normalize a training transcript of a Track 2 head.
 
     Utterances that contain digits are dropped (None is returned). The others
     are lower-cased and reduced to letters, spaces, apostrophes and hyphens.
-    Unlike ``lower_letters`` this applies no Unicode canonicalisation: it is
+    Unlike ``lower_letters`` this applies no Unicode canonicalization: it is
     the exact function the released heads were trained with.
     """
     if re.search(r"\d", text):

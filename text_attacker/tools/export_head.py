@@ -47,7 +47,7 @@ def main():
     parser.add_argument("--out-dir", required=True, type=Path)
     parser.add_argument("--name", required=True, help="head name, e.g. libri, en, de")
     parser.add_argument("--hyp-norm", required=True, choices=["none", "upper_letters", "lower_letters"],
-                        help="normalisation that brings ASR hypotheses to the training text convention")
+                        help="normalization that brings ASR hypotheses to the training text convention")
     parser.add_argument("--train-corpus", required=True)
     parser.add_argument("--train-text", required=True, help="reference or the ASR system of the pseudo-transcripts")
     parser.add_argument("--with-classifier", action="store_true")

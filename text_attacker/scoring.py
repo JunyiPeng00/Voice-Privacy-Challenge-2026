@@ -1,7 +1,7 @@
 """Speaker profiles, trial scores and EER.
 
 This module depends only on numpy. The scoring follows the official ASV
-evaluation: one profile per enrolment speaker (the mean of the speaker's
+evaluation: one profile per enrollment speaker (the mean of the speaker's
 utterance embeddings), cosine similarity between profile and trial
 embedding, and trials without an embedding are skipped and counted. The EER
 follows the SpeechBrain routine that the official evaluation calls.
@@ -18,10 +18,10 @@ def _unit(v):
 
 
 def build_profiles(embeddings, speakers):
-    """Average the unit-length embeddings of each speaker and renormalise.
+    """Average the unit-length embeddings of each speaker and renormalize.
 
     Args:
-        embeddings: array [N, D], one row per enrolment utterance
+        embeddings: array [N, D], one row per enrollment utterance
         speakers: N speaker ids
 
     Returns:
@@ -39,13 +39,13 @@ def _cosine_similarity_float32(enrol, test):
     This is the expression of the official ASV scorer. Going through the
     clipped distance rounds tiny similarities to zero, so it is kept as it is.
     """
-    def normalise_rows(x):
+    def normalize_rows(x):
         # as sklearn.preprocessing.normalize: einsum row norms, near-zero norms replaced by 1
         norms = np.sqrt(np.einsum("ij,ij->i", x, x))
         norms[norms < 10 * np.finfo(norms.dtype).eps] = 1
         return x / norms[:, np.newaxis]
 
-    similarity = normalise_rows(enrol) @ normalise_rows(test).T
+    similarity = normalize_rows(enrol) @ normalize_rows(test).T
     distance = np.clip(np.float32(1) - similarity, 0, 2)
     return np.float32(1) - distance
 
@@ -76,8 +76,8 @@ def score_trials(profiles, trial_embeddings, pairs):
     return scores, kept, int((~kept).sum())
 
 
-def eer_with_ties(scores, labels):
-    """Equal error rate in percent, and the number of trials whose score is not unique.
+def _eer_operating_point(scores, labels):
+    """EER in percent, its threshold, and the number of trials whose score is not unique.
 
     Reproduces ``speechbrain.utils.metric_stats.EER``, which the official ASV
     evaluation calls, including its float32 arithmetic: scores are float32;
@@ -111,9 +111,20 @@ def eer_with_ties(scores, labels):
         if candidate < best_gap:
             best, best_gap = i, stored
     ties = int(len(scores) - len(distinct))
-    return 100 * (float(far[best]) + float(frr[best])) / 2, ties
+    return 100 * (float(far[best]) + float(frr[best])) / 2, float(thresholds[best]), ties
+
+
+def eer_with_ties(scores, labels):
+    """Equal error rate in percent, and the number of trials whose score is not unique."""
+    value, _, ties = _eer_operating_point(scores, labels)
+    return value, ties
 
 
 def eer(scores, labels):
     """Equal error rate in percent."""
-    return eer_with_ties(scores, labels)[0]
+    return _eer_operating_point(scores, labels)[0]
+
+
+def eer_threshold(scores, labels):
+    """Threshold of the EER operating point: a trial is accepted when its score is above it."""
+    return _eer_operating_point(scores, labels)[1]
