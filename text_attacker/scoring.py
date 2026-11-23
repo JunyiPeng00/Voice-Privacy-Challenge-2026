@@ -33,30 +33,46 @@ def build_profiles(embeddings, speakers):
     return {spk: _unit(np.mean(embs, axis=0)) for spk, embs in per_speaker.items()}
 
 
+def _cosine_similarity_float32(enrol, test):
+    """``1 - sklearn.metrics.pairwise.cosine_distances(enrol, test)`` on float32 input.
+
+    This is the expression of the official ASV scorer. Going through the
+    clipped distance rounds tiny similarities to zero, so it is kept as it is.
+    """
+    def normalise_rows(x):
+        norms = np.sqrt((x * x).sum(axis=1, keepdims=True))
+        norms[norms == 0] = 1
+        return x / norms
+
+    similarity = normalise_rows(enrol) @ normalise_rows(test).T
+    distance = np.clip(np.float32(1) - similarity, 0, 2)
+    return np.float32(1) - distance
+
+
 def score_trials(profiles, trial_embeddings, pairs):
-    """Cosine score of every (enrol_spk, trial_utt) pair.
+    """Cosine score of every (enrol_spk, trial_utt) pair, in float32 as in the official scorer.
 
     Args:
-        profiles: dict speaker id -> unit vector, from ``build_profiles``
+        profiles: dict speaker id -> vector, from ``build_profiles``
         trial_embeddings: dict utterance id -> vector
         pairs: list of (enrol_spk, trial_utt)
 
     Returns:
-        scores: array with one score per kept pair
+        scores: float32 array with one score per kept pair
         kept: boolean array over ``pairs``, False where an embedding is missing
         skipped: number of pairs without a profile or a trial embedding
     """
-    trial_unit = {}
-    kept = np.zeros(len(pairs), dtype=bool)
-    scores = []
-    for i, (enrol, utt) in enumerate(pairs):
-        if enrol not in profiles or utt not in trial_embeddings:
-            continue
-        if utt not in trial_unit:
-            trial_unit[utt] = _unit(np.asarray(trial_embeddings[utt], dtype=np.float64))
-        scores.append(float(profiles[enrol] @ trial_unit[utt]))
-        kept[i] = True
-    return np.array(scores), kept, int((~kept).sum())
+    kept = np.array([enrol in profiles and utt in trial_embeddings for enrol, utt in pairs], dtype=bool)
+    kept_pairs = [pair for pair, keep in zip(pairs, kept) if keep]
+    if not kept_pairs:
+        return np.zeros(0, dtype=np.float32), kept, int((~kept).sum())
+    enrol_index = {spk: i for i, spk in enumerate(dict.fromkeys(enrol for enrol, _ in kept_pairs))}
+    test_index = {utt: i for i, utt in enumerate(dict.fromkeys(utt for _, utt in kept_pairs))}
+    similarity = _cosine_similarity_float32(
+        np.stack([profiles[spk] for spk in enrol_index]).astype(np.float32),
+        np.stack([trial_embeddings[utt] for utt in test_index]).astype(np.float32))
+    scores = similarity[[enrol_index[enrol] for enrol, _ in kept_pairs], [test_index[utt] for _, utt in kept_pairs]]
+    return scores, kept, int((~kept).sum())
 
 
 def eer_with_ties(scores, labels):

@@ -17,7 +17,7 @@ class ScoringTest(unittest.TestCase):
         trials = {"u1": np.array([3.0, 0.0]), "u2": np.array([1.0, 1.0])}
         pairs = [("a", "u1"), ("b", "u1"), ("a", "u2"), ("a", "missing"), ("c", "u1")]
         scores, kept, skipped = scoring.score_trials(profiles, trials, pairs)
-        np.testing.assert_allclose(scores, [1.0, 0.0, 1 / np.sqrt(2)])
+        np.testing.assert_allclose(scores, [1.0, 0.0, 1 / np.sqrt(2)], atol=1e-6)
         np.testing.assert_array_equal(kept, [True, True, True, False, False])
         self.assertEqual(skipped, 2)
 
@@ -31,6 +31,19 @@ class ScoringTest(unittest.TestCase):
         np.testing.assert_array_equal(scores, [0.0, 0.0, 0.0, 1.0])
         self.assertTrue(kept.all())
         self.assertEqual(skipped, 0)
+
+    def test_scores_follow_the_official_float32_cosine(self):
+        # 1 - clip(1 - cos, 0, 2) in float32 rounds +-1e-8 to 0, as the official scorer does
+        profiles = {"s": np.array([1.0, 0.0])}
+        trials = {"target": np.array([1e-8, 1.0]), "nontarget": np.array([-1e-8, 1.0])}
+        scores, _, _ = scoring.score_trials(profiles, trials, [("s", "target"), ("s", "nontarget")])
+        self.assertEqual(scores.dtype, np.float32)
+        np.testing.assert_array_equal(scores, [0.0, 0.0])
+        self.assertEqual(scoring.eer(scores, np.array([1, 0])), 50.0)
+
+    def test_no_scorable_trial(self):
+        scores, kept, skipped = scoring.score_trials({}, {}, [("a", "u")])
+        self.assertEqual((len(scores), kept.tolist(), skipped), (0, [False], 1))
 
     def test_eer_separable_and_reversed(self):
         labels = np.array([1, 1, 0, 0])

@@ -36,6 +36,8 @@ class Head(nn.Module):
             nn.init.xavier_normal_(self.weight)
         else:
             self.head = nn.Linear(embedding, speakers, bias=False)
+        # False for a head loaded without its classifier: it embeds text but has no speaker logits
+        self.has_classifier = True
 
     def embed(self, pooled):
         """Pooled encoder features [N, hidden] -> unit-length speaker embeddings [N, embedding]."""
@@ -43,6 +45,8 @@ class Head(nn.Module):
 
     def forward(self, pooled, targets=None):
         """Speaker logits. With AAM-softmax the margin is applied to ``targets`` when they are given."""
+        if not self.has_classifier:
+            raise RuntimeError("This head was loaded without its speaker classifier; only embed() is available.")
         z = self.embed(pooled)
         if self.objective == "softmax":
             return self.head(z)
@@ -64,6 +68,8 @@ def save_head(head_dir, head, meta, with_classifier=False):
     """
     from safetensors.torch import save_file
 
+    if with_classifier and not head.has_classifier:
+        raise ValueError("This head was loaded without its speaker classifier, so the classifier cannot be saved.")
     head_dir = Path(head_dir)
     head_dir.mkdir(parents=True, exist_ok=True)
     state = {k: v.detach().cpu().contiguous() for k, v in head.state_dict().items()
@@ -81,10 +87,11 @@ def save_head(head_dir, head, meta, with_classifier=False):
 
 
 def load_head(head_dir, map_location="cpu"):
-    """Load a head saved by ``save_head``, in evaluation mode.
+    """Load a head saved by ``save_head``, in evaluation mode and on ``map_location``.
 
     Returns:
-        head: Head; its classifier holds trained weights only if head.json says ``has_classifier``
+        head: Head. If head.json says the classifier was not saved, ``head.has_classifier`` is False
+            and only ``embed`` can be used.
         meta: content of head.json
     """
     from safetensors.torch import load_file
@@ -98,11 +105,15 @@ def load_head(head_dir, map_location="cpu"):
     head = Head(speakers=meta["speakers"], objective=meta["objective"], hidden=meta["hidden"],
                 bottleneck=meta["bottleneck"], embedding=meta["embedding"],
                 scale=meta.get("scale", 30.0), margin=meta.get("margin", 0.2))
-    state = load_file(str(head_dir / "head.safetensors"), device=str(map_location))
-    missing, unexpected = head.load_state_dict(state, strict=False)
-    classifier_keys = {"weight", "head.weight"}
-    if unexpected or (set(missing) - classifier_keys) or (missing and meta.get("has_classifier")):
-        raise RuntimeError(f"head.safetensors in {head_dir} does not match head.json "
-                           f"(missing: {missing}, unexpected: {unexpected})")
-    head.eval()
+    state = load_file(str(head_dir / "head.safetensors"), device="cpu")
+    classifier_key = "weight" if head.objective == "aam-softmax" else "head.weight"
+    expected = {k for k in head.state_dict() if k.startswith("project.")}
+    if meta.get("has_classifier", False):
+        expected.add(classifier_key)
+    if set(state) != expected:
+        raise RuntimeError(f"head.safetensors in {head_dir} does not match head.json: "
+                           f"expected tensors {sorted(expected)}, found {sorted(state)}")
+    head.load_state_dict(state, strict=False)
+    head.has_classifier = bool(meta.get("has_classifier", False))
+    head.to(map_location).eval()
     return head, meta
