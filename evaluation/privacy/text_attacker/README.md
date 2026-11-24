@@ -186,6 +186,28 @@ The EER threshold of `libri_dev` is 0.239. In these examples, speakers whose rec
 novel reach scores of about 0.7 against enrollment speaker 4482, with *navire*, *nautilus* and *canadien* as the most
 important words.
 
+## Acoustic-text association
+
+Do the ASV attacker and the text attacker confuse the same trials? `tools/association.py` computes the Spearman
+correlation between the ASV scores and the text attacker scores of the nontarget trials, after the mean of each
+enrollment speaker and of each trial utterance has been removed from both (rho_dc). Both score files are the `scores`
+files written by the evaluations:
+
+```bash
+python -m evaluation.privacy.text_attacker.tools.association --trials data/en_test_trials_mixed/trials \
+    --asv_scores exp/asv_ssl/cosine_out/en_test_enrolls-en_test_trials_mixed/scores \
+    --text_scores exp/text_attacker/results/track2/en_test_enrolls-en_test_trials_mixed/scores
+```
+
+`tools/plot_association.py` draws the values of several anonymization systems, one panel per language, with the
+pretrained and the fine-tuned (semi-informed) ASV model of each system connected by a line. It reads a tab-separated
+file with the columns `system, language, pretrained, fine_tuned`; the row of the system `original` gives the dashed
+line.
+
+```bash
+python -m evaluation.privacy.text_attacker.tools.plot_association --values rho_dc.tsv --out rho_dc.png --baselines 3
+```
+
 ## Code
 
 | Module | Content |
@@ -194,6 +216,7 @@ important words.
 | `head.py`, `encoder.py` | the trained head and the frozen encoder |
 | `extraction.py` | embeddings from the `text` file of a data directory; stands in for the `SpeakerExtraction` of the ASV evaluation |
 | `attribution.py`, `tools/explain.py` | word importance by occlusion, HTML page |
+| `tools/association.py`, `tools/plot_association.py` | acoustic-text association of the two attackers, figure |
 | `evaluate_text_attacker.py` | the evaluation loop; `TextASV` is the `ASV` class of the ASV evaluation with the text embeddings |
 | `reference/` | reference EERs |
 
