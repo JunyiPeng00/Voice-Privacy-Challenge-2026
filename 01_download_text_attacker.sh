@@ -11,8 +11,7 @@ for head in libri en de es fr; do
         echo "Download text attacker head '$head'..."
         mkdir -p $heads_dir/$head
         for file in head.safetensors head.json; do
-            # HF_TOKEN is only needed while the model repository is not public
-            wget -nv ${HF_TOKEN:+--header="Authorization: Bearer $HF_TOKEN"} -O $heads_dir/$head/$file $repo/$head/$file
+            wget -nv -O $heads_dir/$head/$file $repo/$head/$file
         done
     fi
 done
