@@ -1,4 +1,4 @@
-# Evaluation of the text attacker (speaker verification from transcripts only), see text_attacker/README.md
+# Evaluation of the text attacker (speaker verification from transcripts only), see evaluation/privacy/text_attacker/README.md
 # We need to set CUDA_VISIBLE_DEVICES before we import Pytorch, so we will read all arguments directly on startup
 import os
 import json
@@ -21,7 +21,7 @@ if 'CUDA_VISIBLE_DEVICES' not in os.environ:  # do not overwrite previously set 
 import torch
 
 from utils import parse_yaml, setup_logger
-from text_attacker.official import evaluate_text_attacker
+from evaluation.privacy.text_attacker import evaluate_text_attacker
 
 logger = setup_logger(__name__)
 

@@ -33,7 +33,7 @@ prefix):
 
 ## Usage
 
-Install the recipe and download the data of the track as described in the main [README](../README.md). Then:
+Install the recipe and download the data of the track as described in the main [README](../../../README.md). Then:
 
 ```bash
 # download the five heads (13 MB) to exp/text_attacker/heads/
@@ -151,7 +151,7 @@ enrollment speaker embedding is kept fixed. Words that express the same topic sh
 underestimate it and the values do not add up to the score; deleting a word also changes the number of pooled tokens.
 
 ```bash
-python -m text_attacker.tools.explain --config configs/track1/eval_text.yaml \
+python -m evaluation.privacy.text_attacker.tools.explain --config configs/track1/eval_text.yaml \
     --dataset libri_dev --speaker 1673 --label target --num 5
 ```
 
@@ -193,11 +193,11 @@ important words.
 | `head.py`, `encoder.py` | the trained head and the frozen encoder |
 | `extraction.py` | embeddings from the `text` file of a data directory; stands in for the `SpeakerExtraction` of the ASV evaluation |
 | `attribution.py`, `tools/explain.py` | word importance by occlusion, HTML page |
-| `official.py` | the evaluation loop; `TextASV` is the `ASV` class of the ASV evaluation with the text embeddings |
+| `evaluate_text_attacker.py` | the evaluation loop; `TextASV` is the `ASV` class of the ASV evaluation with the text embeddings |
 | `reference/` | reference EERs |
 
 Trial lists, cosine scores, score files and EER are those of the ASV evaluation (`ASV.eer_compute`), and the
 enrollment embeddings are averaged per speaker by its `SpeakerEmbeddings`; as there, a pair listed twice in a trial
 list takes its last label.
 
-Tests (no download, no GPU): `python -m unittest text_attacker.tests.test_text_attacker`
+Tests (no download, no GPU): `python -m unittest evaluation.privacy.text_attacker.tests.test_text_attacker`

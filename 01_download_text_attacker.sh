@@ -1,5 +1,5 @@
 #!/bin/bash
-# Download the heads of the text attacker (see text_attacker/README.md) to exp/text_attacker/heads.
+# Download the heads of the text attacker (see evaluation/privacy/text_attacker/README.md) to exp/text_attacker/heads.
 
 set -e
 

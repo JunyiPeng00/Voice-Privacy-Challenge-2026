@@ -1,11 +1,11 @@
-"""Word importance for trials of the text attacker (see text_attacker/attribution.py).
+"""Word importance for trials of the text attacker (see ../attribution.py).
 
 The dataset is scored as in the evaluation, then the selected trials are
 explained: every word of the trial transcript is deleted in turn and the trial
 is scored again. Writes an HTML page and a table of the word values.
 
 Example:
-    python -m text_attacker.tools.explain --config configs/track1/eval_text.yaml --dataset libri_dev \
+    python -m evaluation.privacy.text_attacker.tools.explain --config configs/track1/eval_text.yaml --dataset libri_dev \
         --speaker 1673 --label target --num 5
 """
 import json
@@ -15,8 +15,8 @@ from pathlib import Path
 import torch
 from speechbrain.utils.metric_stats import EER
 
-from text_attacker import attribution
-from text_attacker.official import load_attacker, load_encoder, trial_text_dir
+from .. import attribution
+from ..evaluate_text_attacker import load_attacker, load_encoder, trial_text_dir
 from utils import parse_yaml, write_table
 from utils.data_io import read_table
 
@@ -28,7 +28,7 @@ def explain_trials(params, dataset_name, asv, speaker=None, label='all', num=5, 
     Args:
         params: config parsed by ``utils.parse_yaml`` (the config of run_text_attacker.py)
         dataset_name: one of ``privacy.text_attacker.dataset_name``
-        asv: TextASV of the dataset (``official.load_attacker``)
+        asv: TextASV of the dataset (``load_attacker``)
         speaker: enrollment speaker to restrict the trials to, or None
         label: 'target', 'nontarget' or 'all'
         num: number of trials to explain

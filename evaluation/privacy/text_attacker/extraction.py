@@ -7,8 +7,8 @@ from pathlib import Path
 
 import torch
 
-from evaluation.privacy.asv.speaker_embeddings import SpeakerEmbeddings
-from text_attacker import textnorm
+from ..asv.speaker_embeddings import SpeakerEmbeddings
+from . import textnorm
 from utils import read_kaldi_format, setup_logger
 
 logger = setup_logger(__name__)

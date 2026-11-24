@@ -1,3 +1,4 @@
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -6,10 +7,11 @@ from unittest import mock
 import numpy as np
 import torch
 
-from text_attacker import attribution, encoder, official, textnorm
-from text_attacker.head import Head, load_head
-from text_attacker.tests.fakes import FakeModel, FakeTokenizer, save_head
-from text_attacker.tools.explain import explain_trials
+from .. import attribution, encoder, textnorm
+from ..evaluate_text_attacker import evaluate_text_attacker, load_attacker
+from ..head import Head, load_head
+from ..tools.explain import explain_trials
+from .fakes import FakeModel, FakeTokenizer, save_head
 from utils import parse_yaml
 
 CONFIG = """
@@ -74,11 +76,11 @@ class EvaluationTest(unittest.TestCase):
 
     def run_attacker(self, **config):
         params = self.params(**config)
-        with mock.patch.object(official, 'load_encoder', return_value=self.encoder):
-            return official.evaluate_text_attacker(eval_datasets=[('toy_dev_enrolls', 'toy_dev_trials_mixed')],
-                                                   eval_data_dir=params['data_dir'],
-                                                   params=params['privacy']['text_attacker'], device='cpu',
-                                                   anon_data_suffix=params['anon_data_suffix'])
+        # the package exports the function under the name of its module
+        with mock.patch.object(sys.modules[evaluate_text_attacker.__module__], 'load_encoder', return_value=self.encoder):
+            return evaluate_text_attacker(eval_datasets=[('toy_dev_enrolls', 'toy_dev_trials_mixed')],
+                                          eval_data_dir=params['data_dir'], params=params['privacy']['text_attacker'],
+                                          device='cpu', anon_data_suffix=params['anon_data_suffix'])
 
     def test_reference_and_original_asr(self):
         results = self.run_attacker().set_index('trial_text')
@@ -111,7 +113,7 @@ class EvaluationTest(unittest.TestCase):
 
     def test_word_importance_is_the_score_drop_without_the_word(self):
         params = self.params()
-        asv = official.load_attacker(params['privacy']['text_attacker'], 'toy_dev', self.encoder)
+        asv = load_attacker(params['privacy']['text_attacker'], 'toy_dev', self.encoder)
         rows = explain_trials(params, 'toy_dev', asv, speaker='s1', label='target')
         self.assertEqual(list(zip(rows['enrol'], rows['utt'])), [('s1', 't1')])
         self.assertEqual(rows['words'].iloc[0], ['THE', 'SHIP', 'SAILED'])

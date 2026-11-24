@@ -8,10 +8,10 @@ The ASR transcripts are the ``text`` files that the ASR evaluation of run_evalua
 """
 import pandas as pd
 
-from evaluation.privacy.asv.asv import ASV
-from text_attacker.encoder import PooledEncoder
-from text_attacker.extraction import TextExtraction
-from text_attacker.head import load_head
+from ..asv.asv import ASV
+from .encoder import PooledEncoder
+from .extraction import TextExtraction
+from .head import load_head
 
 
 class TextASV(ASV):
