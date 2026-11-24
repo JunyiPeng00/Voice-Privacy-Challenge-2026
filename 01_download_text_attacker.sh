@@ -12,9 +12,7 @@ for head in libri en de es fr; do
         mkdir -p $heads_dir/$head
         for file in head.safetensors head.json; do
             # HF_TOKEN is only needed while the model repository is not public
-            wget -nv ${HF_TOKEN:+--header="Authorization: Bearer $HF_TOKEN"} -O $heads_dir/$head/$file.part $repo/$head/$file \
-                || { rm -f $heads_dir/$head/$file.part; echo "Download of $repo/$head/$file failed."; exit 1; }
-            mv $heads_dir/$head/$file.part $heads_dir/$head/$file
+            wget -nv ${HF_TOKEN:+--header="Authorization: Bearer $HF_TOKEN"} -O $heads_dir/$head/$file $repo/$head/$file
         done
     fi
 done

@@ -62,13 +62,10 @@ privacy:
 
     evaluation:
       results_dir: !ref <exp_dir>/text_attacker/results/<track>
-      cache_dir: !ref <exp_dir>/text_attacker/feat_cache # pooled encoder features, keyed by the text
       asr_text_dir: !ref <exp_dir>/openai/whisper-large-v3 # must equal utility.asr.evaluation.results_dir of eval_pre.yaml
       scenarios: # [enrollment text, trial text]
         - [ref, ref]
         - [ref, asr_orig]
         - [ref, asr_anon]
       hyp_norm: !ref <hyp_norm>
-      on_missing_hypothesis: skip # skip or error, when the ASR evaluation has not been run
-      canary_check: true
       eval_batchsize: 32

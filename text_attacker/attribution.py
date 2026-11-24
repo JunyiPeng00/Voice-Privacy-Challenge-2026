@@ -16,38 +16,30 @@ import html
 import numpy as np
 import torch
 
-from text_attacker import scoring
+from sklearn.metrics.pairwise import cosine_distances
 
 
-def _scores(encoder, head, profile, texts, max_length, batch_size):
-    device = next(head.parameters()).device
-    with torch.inference_mode():
-        pooled = torch.from_numpy(encoder.pool(texts, max_length=max_length, batch_size=batch_size)).to(device)
-        emb = head.embed(pooled).float().cpu().numpy()
-    pairs = [("profile", i) for i in range(len(texts))]
-    return scoring.score_trials({"profile": profile}, dict(enumerate(emb)), pairs)[0]
-
-
-def word_occlusion(encoder, head, profile, text, max_length=96, batch_size=32):
+@torch.inference_mode()
+def word_occlusion(encoder, head, profile, text, max_length=96):
     """Importance of every word of ``text`` for its score against ``profile``.
 
     Args:
-        profile: speaker profile from ``scoring.build_profiles``
+        profile: embedding of the enrollment speaker
         text: trial transcript; words are separated by whitespace
 
     Returns:
         words: list of the words
         importance: float array, one value per word (see the module docstring)
-        score: score of the full transcript
     """
     words = text.split()
-    variants = [" ".join(words)] + [" ".join(words[:i] + words[i + 1:]) for i in range(len(words))]
-    scores = _scores(encoder, head, profile, variants, max_length, batch_size)
-    return words, (scores[0] - scores[1:]).astype(np.float64), float(scores[0])
+    variants = [text] + [' '.join(words[:i] + words[i + 1:]) for i in range(len(words))]
+    pooled = torch.from_numpy(encoder.pool(variants, max_length=max_length)).to(encoder.device)
+    scores = 1 - cosine_distances(X=profile[None], Y=head.embed(pooled).cpu())[0]
+    return words, scores[0] - scores[1:]
 
 
 def _tint(value, scale):
-    if scale <= 0 or value == 0:
+    if value == 0:
         return "transparent"
     strength = min(1.0, abs(value) / scale) ** 0.8 * 0.85
     color = "38, 160, 65" if value > 0 else "218, 55, 50"      # green: same speaker, red: different speaker
@@ -58,21 +50,21 @@ def render_html(rows, title="Text attacker: word importance"):
     """A self-contained HTML page with one table row per explained trial.
 
     Args:
-        rows: list of dicts with keys enrol, utt, label (1 target, 0 nontarget), score, threshold, words, importance
+        rows: list of dicts with keys enrol, utt, label, score, threshold, words, importance
     """
     body = []
     for row in rows:
-        scale = float(np.max(np.abs(row["importance"]))) if len(row["importance"]) else 0.0
+        scale = np.abs(row["importance"]).max()
         words = " ".join(
             f'<span style="background:{_tint(value, scale)}" title="{value:+.4f}">{html.escape(word)}</span>'
             for word, value in zip(row["words"], row["importance"]))
         accepted = row["score"] > row["threshold"]
         body.append(
             f'<tr><td>{html.escape(str(row["enrol"]))}</td><td>{html.escape(str(row["utt"]))}</td>'
-            f'<td>{"target" if row["label"] == 1 else "nontarget"}</td>'
+            f'<td>{row["label"]}</td>'
             f'<td class="{"acc" if accepted else "rej"}">{"accept" if accepted else "reject"} ({row["score"]:.2f})</td>'
             f'<td class="num">{float(np.sum(row["importance"])):+.2f}</td><td class="text">{words}</td></tr>')
-    threshold = f'{rows[0]["threshold"]:.3f}' if rows else "n/a"
+    threshold = f'{rows[0]["threshold"]:.3f}'
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title>

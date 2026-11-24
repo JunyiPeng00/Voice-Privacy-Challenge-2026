@@ -50,7 +50,8 @@ python run_text_attacker.py --config configs/track1/eval_text.yaml --overwrite '
 
 The encoder is downloaded from the Hugging Face hub on first use (2.2 GB). To use a local copy, set
 `text_backbone` to its directory. The evaluation runs on CPU (a few minutes per dataset on 32 cores) or GPU.
-`--force_compute True` recomputes the cached encoder features.
+The embeddings of each data directory are stored; `--force_compute True` recomputes them (needed after the
+transcripts of a directory have changed).
 
 Use `run_text_attacker.py`, not `run_evaluation.py`: the text attacker is not a step of the official evaluation
 script.
@@ -68,9 +69,8 @@ one of:
 
 The ASR transcripts are the ones written by the ASR evaluation of `run_evaluation.py` (the utility metric WER, on
 the trials part), so that evaluation has to
-be run before `asr_orig` and `asr_anon` are available; until then these conditions are skipped with a warning
-(`on_missing_hypothesis: error` turns this into an error). A trial utterance without a transcript in an existing ASR
-file is an error; the reference transcript is never used in its place.
+be run before `asr_orig` and `asr_anon` are available; until then these conditions are skipped with a warning. The
+reference transcript is never used in place of an ASR transcript.
 
 `ref` is what this attacker obtains when it knows exactly what was said. It is not a bound: ASR transcripts can give
 a lower EER (the Track 2 heads were trained on Whisper transcripts), and a stronger text attacker could do better.
@@ -79,21 +79,21 @@ content intact, the `asr_anon` EER is expected to be close to the `asr_orig` EER
 
 ASR transcripts are brought to the text convention of the head's training data (`hyp_norm: head`): upper case
 letters and apostrophes for `libri`, lower case letters, apostrophes and hyphens for the Track 2 heads. Digits are
-removed and counted in the column `n_digit_chars`. Reference transcripts are used as they are. An empty transcript is
-scored (as the text ".") and not skipped; empty ASR transcripts are counted in `n_empty_hyp`.
+removed. Reference transcripts are used as they are. An empty transcript is scored (as the text ".") and not skipped.
 
 ## Output
 
 ```
 exp/text_attacker/results/<track>/
-    results<anon_data_suffix>.csv                          one row per dataset and condition
-    run_info<anon_data_suffix>.json                        config, device, package versions
-    <enrolls>-<trials>__<trial_text>[<suffix>]/scores      enrollment speaker, trial utterance, score
-    <enrolls>-<trials>__<trial_text>[<suffix>]/EER
+    results<anon_data_suffix>.csv                 one row per dataset and condition
+    <enrolls>-<trial text directory>/scores       enrollment speaker, trial utterance, score
+    <enrolls>-<trial text directory>/EER
+    cosine_out/emb_text/<directory>/              stored embeddings
 ```
 
-Columns of the csv: `dataset, split, gender, enrollment_text, trial_text, EER, n_target, n_nontarget, n_skipped,
-n_empty_hyp, n_digit_chars, head, metric_backend`. Nothing is written to `data/`, to the ASV, ASR or SER result
+The trial text directory is `<dataset>_trials_mixed` for `ref`, `<dataset>_asr` for `asr_orig` and
+`<dataset>_asr<anon_data_suffix>` for `asr_anon`, e.g. `libri_dev_enrolls-libri_dev_asr_mcadams`. Columns of the csv:
+`dataset, split, gender, enrollment_text, trial_text, EER`. Nothing is written to `data/`, to the ASV, ASR or SER result
 directories, or to `exp/results_summary` (`result_for_rank`, `result_for_submission`).
 
 ## Reference results
@@ -119,8 +119,7 @@ other anonymization systems and for Whisper large-v3 transcripts):
 | ASR transcripts, original speech | 36.05 | 34.99 |
 | ASR transcripts, speech anonymized by the baselines B2, B3, B4, B5 | 35.91 to 37.25 | 34.89 to 36.31 |
 
-`run_text_attacker.py` warns if the trial list it reads does not have the number of target and nontarget trials
-these references were computed on. The ASR conditions of Track 2 have not been run on anonymized data yet.
+The reference files list the number of target and nontarget trials these EERs were computed on. The ASR conditions of Track 2 have not been run on anonymized data yet.
 
 ## What the EER measures
 
@@ -154,7 +153,7 @@ python -m text_attacker.tools.explain --config configs/track1/eval_text.yaml \
 ```
 
 The dataset is scored as in the evaluation, and the selected trials are written to
-`exp/text_attacker/explain/<enrolls>-<trials>__<trial_text>[<suffix>]_<speaker>_<label>.html` (the transcript of each trial with its
+`exp/text_attacker/explain/<enrolls>-<trial text directory>_<speaker>_<label>.html` (the transcript of each trial with its
 words tinted by importance, the label and the decision at the EER threshold of the dataset) and `.tsv` (one line
 per word). Options: `--speaker` (enrollment speaker, all if not given), `--label target|nontarget|all`,
 `--order list|score|random`, `--num`, `--trial_text ref|asr_orig|asr_anon`.
@@ -187,15 +186,15 @@ important words.
 
 | Module | Content |
 |---|---|
-| `kaldi_io.py`, `textnorm.py`, `scoring.py` | readers, normalization of ASR transcripts, profiles, cosine scores, EER; numpy only |
+| `textnorm.py` | normalization of ASR transcripts |
 | `head.py`, `encoder.py` | the trained head and the frozen encoder |
-| `pipeline.py` | transcripts to embeddings (with a feature cache) and to an EER |
+| `extraction.py` | embeddings from the `text` file of a data directory; stands in for the `SpeakerExtraction` of the ASV evaluation |
 | `attribution.py`, `tools/explain.py` | word importance by occlusion, HTML page |
-| `official.py` | config format and directory layout of this repository (also used by `tools/explain.py`) |
-| `tools/export_head.py` | reduces a training checkpoint to a head |
-| `reference/` | reference EERs, checksums of the heads, probe embeddings checked at start-up |
+| `official.py` | the evaluation loop; `TextASV` is the `ASV` class of the ASV evaluation with the text embeddings |
+| `reference/` | reference EERs, checksums of the heads |
 
-The EER follows `speechbrain.utils.metric_stats.EER` and the scores follow `1 - cosine_distances` of the ASV
-evaluation, including their float32 arithmetic; a pair listed twice in a trial list takes its last label.
+Trial lists, cosine scores, score files and EER are those of the ASV evaluation (`ASV.eer_compute`), and the
+enrollment embeddings are averaged per speaker by its `SpeakerEmbeddings`; as there, a pair listed twice in a trial
+list takes its last label.
 
-Tests (no download, no GPU): `python -m unittest discover -s text_attacker/tests -t .`
+Tests (no download, no GPU): `python -m unittest text_attacker.tests.test_text_attacker`
