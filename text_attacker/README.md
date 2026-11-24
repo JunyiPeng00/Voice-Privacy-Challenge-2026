@@ -144,6 +144,11 @@ words tinted by importance, the label and the decision at the EER threshold of t
 per word). Options: `--speaker` (enrollment speaker, all if not given), `--label target|nontarget|all`,
 `--order list|score|random`, `--num`, `--trial_text ref|asr_orig|asr_anon`.
 
+Six target trials of `libri_dev` as shown on the page (green: the word pushes the trial towards "same speaker", red:
+towards "different speaker"; the tint is relative to the strongest word of the trial):
+
+![Word importance of six target trials of libri_dev](figures/word_importance.svg)
+
 Most important words of the first target trials of three enrollment speakers of `libri_dev`, reference transcripts:
 
 | Enrollment speaker | Trial utterance | Score | Decision | Most important words |
