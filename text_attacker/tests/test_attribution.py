@@ -55,8 +55,8 @@ class AttributionTest(unittest.TestCase):
         self.assertIn("s&lt;1&gt;", page)
         self.assertIn("accept (0.60)", page)
         self.assertIn("reject (0.40)", page)
-        self.assertIn("rgba(214, 88, 30", page)      # positive word
-        self.assertIn("rgba(37, 110, 196", page)     # negative word
+        self.assertIn("rgba(38, 160, 65", page)      # positive word
+        self.assertIn("rgba(218, 55, 50", page)     # negative word
 
 
 @unittest.skipIf(torch is None, "torch or the repository dependencies are not installed")

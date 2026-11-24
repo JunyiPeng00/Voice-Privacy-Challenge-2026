@@ -50,7 +50,7 @@ def _tint(value, scale):
     if scale <= 0 or value == 0:
         return "transparent"
     strength = min(1.0, abs(value) / scale) ** 0.8 * 0.85
-    color = "214, 88, 30" if value > 0 else "37, 110, 196"      # orange: same speaker, blue: different speaker
+    color = "38, 160, 65" if value > 0 else "218, 55, 50"      # green: same speaker, red: different speaker
     return f"rgba({color}, {strength:.3f})"
 
 
@@ -86,13 +86,13 @@ th {{ color: #4a5361; font-weight: 500; }}
 td.text {{ white-space: normal; font-family: Georgia, serif; font-size: 16px; line-height: 1.9; min-width: 28ch; }}
 td.text span {{ padding: 1px 2px; border-radius: 3px; }}
 td.num {{ font-variant-numeric: tabular-nums; }}
-td.acc {{ color: #8a2e06; }} td.rej {{ color: #1d4f8a; }}
+td.acc {{ color: #1a6b2c; }} td.rej {{ color: #9b1c1c; }}
 .key span {{ padding: 1px 6px; border-radius: 3px; }}
 </style></head><body>
 <h1>{html.escape(title)}</h1>
 <p>Each word is tinted by the drop of the trial score when the word is deleted from the trial transcript:
-<span class="key"><span style="background:rgba(214, 88, 30, 0.6)">pushes towards &ldquo;same speaker&rdquo;</span>
-<span style="background:rgba(37, 110, 196, 0.6)">pushes towards &ldquo;different speaker&rdquo;</span></span>.
+<span class="key"><span style="background:rgba(38, 160, 65, 0.6)">pushes towards &ldquo;same speaker&rdquo;</span>
+<span style="background:rgba(218, 55, 50, 0.6)">pushes towards &ldquo;different speaker&rdquo;</span></span>.
 The tint is relative to the strongest word of the row; hover over a word for its value. A trial is accepted when
 its score is above the EER threshold of the dataset ({threshold}). &ldquo;Sum&rdquo; is the sum of the word values.</p>
 <table>
