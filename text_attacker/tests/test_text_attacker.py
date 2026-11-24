@@ -33,10 +33,7 @@ privacy:
     evaluation:
       results_dir: !ref <exp_dir>/text_attacker/results
       asr_text_dir: !ref <exp_dir>/asr
-      scenarios:
-        - [ref, ref]
-        - [ref, asr_orig]
-        - [ref, asr_anon]
+      trial_text: {trial_text}
       hyp_norm: head
       eval_batchsize: 2
 """
@@ -70,15 +67,15 @@ class EvaluationTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def params(self, suffix=''):
-        (self.root / 'config.yaml').write_text(CONFIG.format(root=self.root, suffix=suffix))
+    def params(self, suffix='', trial_text='[ref, asr_orig]'):
+        (self.root / 'config.yaml').write_text(CONFIG.format(root=self.root, suffix=suffix, trial_text=trial_text))
         return parse_yaml(self.root / 'config.yaml')
 
-    def run_attacker(self, suffix=''):
+    def run_attacker(self, **config):
         with mock.patch.object(official, 'load_encoder', return_value=self.encoder):
-            return official.evaluate_text_attacker(self.params(suffix), device='cpu')
+            return official.evaluate_text_attacker(self.params(**config), device='cpu')
 
-    def test_reference_and_original_asr_without_suffix(self):
+    def test_reference_and_original_asr(self):
         results = self.run_attacker().set_index('trial_text')
         self.assertEqual(sorted(results.index), ['asr_orig', 'ref'])
         out = self.root / 'exp/text_attacker/results'
@@ -90,7 +87,7 @@ class EvaluationTest(unittest.TestCase):
         self.assertTrue((out / 'results.csv').is_file())
 
     def test_anonymized_condition(self):
-        results = self.run_attacker(suffix='_anon').set_index('trial_text')
+        results = self.run_attacker(suffix='_anon', trial_text='[ref, asr_orig, asr_anon]').set_index('trial_text')
         self.assertEqual(sorted(results.index), ['asr_anon', 'asr_orig', 'ref'])
         self.assertTrue((self.root / 'exp/text_attacker/results/toy_dev_enrolls-toy_dev_asr_anon/scores').is_file())
 

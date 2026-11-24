@@ -1,10 +1,9 @@
 """Run the text attacker on the data layout and config format of this repository.
 
-Attack conditions are pairs [enrollment text, trial text]:
+Enrollment always uses reference transcripts. The trial text is one of:
     ref        reference transcripts (the ``text`` file of the data directory)
     asr_orig   ASR transcripts of the original trial audio
-    asr_anon   ASR transcripts of the anonymized trial audio
-Enrollment always uses reference transcripts. The ASR transcripts are the
+    asr_anon   ASR transcripts of the anonymized trial audio The ASR transcripts are the
 ``text`` files that the ASR evaluation of run_evaluation.py writes.
 """
 import itertools
@@ -15,9 +14,6 @@ from evaluation.privacy.asv.asv import ASV
 from text_attacker.encoder import PooledEncoder
 from text_attacker.extraction import TextExtraction
 from text_attacker.head import load_head
-from utils import setup_logger
-
-logger = setup_logger(__name__)
 
 
 class TextASV(ASV):
@@ -58,14 +54,13 @@ def evaluate_text_attacker(params, device, force_compute=False):
     """Evaluate the text attacker as described by ``params['privacy']['text_attacker']``.
 
     Returns:
-        DataFrame with one row per (enrollment set, trial set, condition); also written to
+        DataFrame with one row per (enrollment set, trial set, trial text); also written to
         ``results_dir/results<anon_data_suffix>.csv``.
     """
     attacker_params = params['privacy']['text_attacker']
     eval_params = attacker_params['evaluation']
     data_dir = params['data_dir']
     anon_data_suffix = params['anon_data_suffix']
-    scenarios = [s for s in eval_params['scenarios'] if anon_data_suffix or s[1] != 'asr_anon']
     encoder = load_encoder(attacker_params, device)
     results = []
 
@@ -75,25 +70,21 @@ def evaluate_text_attacker(params, device, force_compute=False):
 
         for enroll, trial in itertools.product(dataset['enrolls'], dataset['trials']):
             enroll_name, trial_name = f'{dataset["data"]}{enroll}', f'{dataset["data"]}{trial}'
-            for enroll_source, trial_source in scenarios:
+            for trial_source in eval_params['trial_text']:
                 test_dir = trial_text_dir(trial_source, data_dir, trial_name, name, eval_params['asr_text_dir'],
                                           anon_data_suffix)
-                if not (test_dir / 'text').exists():
-                    logger.warning(f'No transcripts in {test_dir}, run the ASR evaluation of run_evaluation.py first. '
-                                   f'Skipping [{enroll_source}, {trial_source}].')
-                    continue
                 # as in the ASV evaluation, the trial list is always the one of the original trial directory
                 EER = asv.eer_compute(enrol_dir=data_dir / enroll_name, test_dir=test_dir,
                                       trial_runs_file=data_dir / trial_name / 'trials')
                 EER = round(EER * 100, 3)
 
-                print(f'{enroll_name}-{test_dir.name}: [{enroll_source}, {trial_source}]-EER={EER}')
+                print(f'{enroll_name}-{test_dir.name}: {trial_source}-EER={EER}')
                 trials_info = trial_name.split('_')
                 gender = trials_info[3]
                 if 'common' in trial_name:
                     gender += '_common'
                 results.append({'dataset': trials_info[0], 'split': trials_info[1], 'gender': gender,
-                                'enrollment_text': enroll_source, 'trial_text': trial_source, 'EER': EER})
+                                'trial_text': trial_source, 'EER': EER})
 
     results_df = pd.DataFrame(results)
     print(results_df)

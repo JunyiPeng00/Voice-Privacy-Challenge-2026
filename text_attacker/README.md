@@ -45,7 +45,8 @@ python run_text_attacker.py --config configs/track2/eval_text.yaml
 # an anonymization system: run anonymization and evaluation first (the ASR evaluation writes the transcripts), e.g.
 ./02_run_track1.sh configs/track1/anon_mcadams.yaml
 # then
-python run_text_attacker.py --config configs/track1/eval_text.yaml --overwrite '{"anon_data_suffix": "_mcadams"}'
+python run_text_attacker.py --config configs/track1/eval_text.yaml \
+    --overwrite '{"anon_data_suffix": "_mcadams", "trial_text": ["ref", "asr_orig", "asr_anon"]}'
 ```
 
 The encoder is downloaded from the Hugging Face hub on first use (2.2 GB). To use a local copy, set
@@ -69,8 +70,8 @@ one of:
 
 The ASR transcripts are the ones written by the ASR evaluation of `run_evaluation.py` (the utility metric WER, on
 the trials part), so that evaluation has to
-be run before `asr_orig` and `asr_anon` are available; until then these conditions are skipped with a warning. The
-reference transcript is never used in place of an ASR transcript.
+be run before `asr_orig` and `asr_anon` are available. The config evaluates `ref` only (`trial_text: [ref]`); the
+other conditions are added as in the command above.
 
 `ref` is what this attacker obtains when it knows exactly what was said. It is not a bound: ASR transcripts can give
 a lower EER (the Track 2 heads were trained on Whisper transcripts), and a stronger text attacker could do better.
@@ -93,7 +94,7 @@ exp/text_attacker/results/<track>/
 
 The trial text directory is `<dataset>_trials_mixed` for `ref`, `<dataset>_asr` for `asr_orig` and
 `<dataset>_asr<anon_data_suffix>` for `asr_anon`, e.g. `libri_dev_enrolls-libri_dev_asr_mcadams`. Columns of the csv:
-`dataset, split, gender, enrollment_text, trial_text, EER`. Nothing is written to `data/`, to the ASV, ASR or SER result
+`dataset, split, gender, trial_text, EER`. Nothing is written to `data/`, to the ASV, ASR or SER result
 directories, or to `exp/results_summary` (`result_for_rank`, `result_for_submission`).
 
 ## Reference results
