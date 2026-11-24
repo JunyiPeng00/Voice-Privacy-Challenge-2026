@@ -17,8 +17,8 @@ import numpy as np
 from text_attacker import attribution, kaldi_io, pipeline, scoring
 from text_attacker.encoder import PooledEncoder
 from text_attacker.head import load_head
-from text_attacker.official import read_trial_text
-from utils import parse_yaml, read_kaldi_format, setup_logger
+from text_attacker.official import read_enrollment, read_trial_text
+from utils import parse_yaml, setup_logger
 
 logger = setup_logger(__name__)
 
@@ -71,9 +71,7 @@ def explain_trials(params, dataset_name, device='cpu', speaker=None, label='all'
     batch_size = eval_params.get('eval_batchsize', 32)
     cache_dir = eval_params.get('cache_dir')
 
-    enrol_text = read_kaldi_format(enrol_dir / 'text', values_as_string=True)
-    enrol_text = {utt: text if isinstance(text, str) else '' for utt, text in enrol_text.items()}
-    enrol_utt2spk = read_kaldi_format(enrol_dir / 'utt2spk')
+    enrol_text, enrol_utt2spk = read_enrollment(enrol_dir)
     pairs, labels = kaldi_io.read_trials(trial_dir / 'trials')
     needed = sorted({utt for _, utt in pairs})
     trial_text, _ = read_trial_text(trial_source, trial_dir, dataset_name, eval_params.get('asr_text_dir'),

@@ -121,6 +121,11 @@ class ExplainToolTest(unittest.TestCase):
         with self.assertRaises(ValueError):                                    # ambiguous without a choice
             explain_trials(self.params, "toy_dev", encoder=self.encoder)
 
+    def test_enrollment_utterance_without_transcript_is_rejected(self):
+        (self.root / "data/toy_dev_enrolls/text").write_text("s1-a THE SHIP SAILED NORTH\ns2-a BREAD AND BUTTER\n", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            explain_trials(self.params, "toy_dev", num=1, encoder=self.encoder)
+
     def test_reported_score_is_the_evaluation_score(self):
         import unittest.mock as mock
         shifted = lambda *a, **k: (["X"], np.array([0.0]), 123.0)

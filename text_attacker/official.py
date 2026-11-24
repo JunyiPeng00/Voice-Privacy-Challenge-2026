@@ -74,6 +74,27 @@ def check_canary(encoder, head, meta, tolerance=1e-3):
     logger.info(f'Canary check of head "{name}" passed (max deviation {deviation:.1e}).')
 
 
+def read_enrollment(enrol_dir):
+    """Reference transcripts and speakers of an enrollment directory; every utterance needs both.
+
+    Returns:
+        (dict utterance id -> text, dict utterance id -> speaker id)
+    """
+    enrol_text = read_kaldi_format(enrol_dir / 'text', values_as_string=True)
+    enrol_text = {utt: text if isinstance(text, str) else '' for utt, text in enrol_text.items()}
+    enrol_utt2spk = read_kaldi_format(enrol_dir / 'utt2spk')
+    malformed = [utt for utt in enrol_text
+                 if not isinstance(enrol_utt2spk.get(utt), str) or not enrol_utt2spk[utt].strip()]
+    if malformed:
+        raise ValueError(f'{enrol_dir / "utt2spk"} has no single speaker for {len(malformed)} utterances of '
+                         f'{enrol_dir / "text"}, e.g. {malformed[:3]}.')
+    missing = [utt for utt in enrol_utt2spk if utt not in enrol_text]
+    if missing:
+        raise ValueError(f'{enrol_dir / "text"} has no transcript for {len(missing)} utterances of '
+                         f'{enrol_dir / "utt2spk"}, e.g. {missing[:3]}.')
+    return enrol_text, enrol_utt2spk
+
+
 def read_trial_text(source, trial_dir, dataset_name, asr_text_dir, anon_data_suffix, hyp_norm, needed, on_missing):
     """Texts of the trial utterances for one source.
 
@@ -164,18 +185,7 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
         for enroll, trial in itertools.product(dataset['enrolls'], dataset['trials']):
             enrol_name, trial_name = f'{dataset["data"]}{enroll}', f'{dataset["data"]}{trial}'
             enrol_dir, trial_dir = data_dir / enrol_name, data_dir / trial_name
-            enrol_text = read_kaldi_format(enrol_dir / 'text', values_as_string=True)
-            enrol_text = {utt: text if isinstance(text, str) else '' for utt, text in enrol_text.items()}
-            enrol_utt2spk = read_kaldi_format(enrol_dir / 'utt2spk')
-            malformed = [utt for utt in enrol_text
-                         if not isinstance(enrol_utt2spk.get(utt), str) or not enrol_utt2spk[utt].strip()]
-            if malformed:
-                raise ValueError(f'{enrol_dir / "utt2spk"} has no single speaker for {len(malformed)} utterances of '
-                                 f'{enrol_dir / "text"}, e.g. {malformed[:3]}.')
-            missing = [utt for utt in enrol_utt2spk if utt not in enrol_text]
-            if missing:
-                raise ValueError(f'{enrol_dir / "text"} has no transcript for {len(missing)} utterances of '
-                                 f'{enrol_dir / "utt2spk"}, e.g. {missing[:3]}.')
+            enrol_text, enrol_utt2spk = read_enrollment(enrol_dir)
             # as in the ASV evaluation, the trial list is always the one of the original trial directory
             pairs, labels = kaldi_io.read_trials(trial_dir / 'trials')
             needed = sorted({utt for _, utt in pairs})
