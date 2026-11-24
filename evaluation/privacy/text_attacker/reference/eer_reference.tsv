@@ -1,6 +1,6 @@
 # Reference EERs of the released heads on reference transcripts (fp32).
-# trials_file 'trials' is the official list of 2026-09-01; 'trials_old' is the earlier Track 1 list, kept to test
-# that a pair listed twice takes its last label. n_trials counts distinct (enrol, trial) pairs.
+# trials_file 'trials' is the official list of 2026-09-01; 'trials_old' is the earlier Track 1 list, in which pairs
+# are listed twice (the last label counts). n_trials counts distinct (enrol, trial) pairs.
 track	set	split	trials_file	eer	n_trials	n_target	n_nontarget
 track1	libri	dev	trials	36.0534	57362	1348	56014
 track1	libri	test	trials	34.8049	43384	997	42387

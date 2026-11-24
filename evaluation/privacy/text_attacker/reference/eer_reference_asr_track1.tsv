@@ -1,7 +1,7 @@
 # Track 1 EERs of the released libri head with ASR transcripts as trial text (enrollment: reference transcripts),
 # on the official trial list of 2026-09-01. 'original' is the original audio; the other rows are anonymized audio of
-# six systems (the four challenge baselines B2-B5, kNN-VC and a Whisper-to-TTS cascade) as generated for the
-# regression tests of this package; another run of a system will not give exactly these numbers.
+# six systems (the four challenge baselines B2-B5, kNN-VC and a Whisper-to-TTS cascade); another run of a system
+# will not give exactly these numbers.
 # The transcripts were read from Kaldi text files, i.e. with whitespace collapsed.
 split	trial_text	asr	hyp_norm	system	eer	n_empty_hyp
 dev	asr_anon	Whisper large-v3	none	b2	37.03	0

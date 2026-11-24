@@ -159,7 +159,8 @@ The dataset is scored as in the evaluation, and the selected trials are written 
 `exp/text_attacker/explain/<enrolls>-<trial text directory>_<speaker>_<label>.html` (the transcript of each trial with its
 words tinted by importance, the label and the decision at the EER threshold of the dataset) and `.tsv` (one line
 per word). Options: `--speaker` (enrollment speaker, all if not given), `--label target|nontarget|all`,
-`--order list|score|random`, `--num`, `--trial_text ref|asr_orig|asr_anon`.
+`--order list|score|random`, `--num`, `--trial_text ref|asr_orig|asr_anon`, `--enrolls` and `--trials` (the split, if
+the dataset has several), `--overwrite` (as for `run_text_attacker.py`).
 
 Six target trials of `libri_dev` as shown on the page (green: the word pushes the trial towards "same speaker", red:
 towards "different speaker"; the tint is relative to the strongest word of the trial):
