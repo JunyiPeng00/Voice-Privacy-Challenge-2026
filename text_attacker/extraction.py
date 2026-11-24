@@ -32,6 +32,7 @@ class TextExtraction:
         self.results_dir = results_dir
         self.batch_size = batch_size
         self.force_compute = force_compute
+        self.extracted = {}  # data directory -> embeddings of this run
 
     def read_text(self, dataset_path):
         """Transcripts of a data directory; ASR transcripts are normalized, reference transcripts are not."""
@@ -42,21 +43,21 @@ class TextExtraction:
 
     @torch.inference_mode()
     def extract_speakers(self, dataset_path, emb_level='utt'):
-        results_dir = self.results_dir / dataset_path.name
-        embeddings = SpeakerEmbeddings(vec_type='text', emb_level='utt')
-        if (results_dir / 'speaker_vectors.pt').exists() and not self.force_compute:
-            embeddings.load_vectors(results_dir)
-        else:
-            text = self.read_text(dataset_path)
-            utts = list(text)
-            pooled = self.encoder.pool(list(text.values()), max_length=self.max_length, batch_size=self.batch_size)
-            vectors = self.head.embed(torch.from_numpy(pooled).to(self.encoder.device)).cpu()
-            speakers = utts
-            if emb_level == 'spk':
-                utt2spk = read_kaldi_format(dataset_path / 'utt2spk')
-                speakers = [utt2spk[utt] for utt in utts]
-            embeddings.set_vectors(identifiers=utts, vectors=vectors, speakers=speakers, genders=[''] * len(utts))
-            embeddings.save_vectors(results_dir)
-        if emb_level == 'spk':
-            embeddings = embeddings.convert_to_spk_level()
-        return embeddings
+        if dataset_path not in self.extracted:
+            results_dir = self.results_dir / dataset_path.name
+            embeddings = SpeakerEmbeddings(vec_type='text', emb_level='utt')
+            if (results_dir / 'speaker_vectors.pt').exists() and not self.force_compute:
+                embeddings.load_vectors(results_dir)
+            else:
+                text = self.read_text(dataset_path)
+                utts = list(text)
+                pooled = self.encoder.pool(list(text.values()), max_length=self.max_length, batch_size=self.batch_size)
+                vectors = self.head.embed(torch.from_numpy(pooled).to(self.encoder.device)).cpu()
+                speakers = utts
+                if emb_level == 'spk':
+                    utt2spk = read_kaldi_format(dataset_path / 'utt2spk')
+                    speakers = [utt2spk[utt] for utt in utts]
+                embeddings.set_vectors(identifiers=utts, vectors=vectors, speakers=speakers, genders=[''] * len(utts))
+                embeddings.save_vectors(results_dir)
+            self.extracted[dataset_path] = embeddings.convert_to_spk_level() if emb_level == 'spk' else embeddings
+        return self.extracted[dataset_path]

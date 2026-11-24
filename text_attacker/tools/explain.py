@@ -17,7 +17,7 @@ from speechbrain.utils.metric_stats import EER
 
 from text_attacker import attribution
 from text_attacker.official import load_attacker, load_encoder, trial_text_dir
-from utils import parse_yaml
+from utils import parse_yaml, write_table
 from utils.data_io import read_table
 
 
@@ -75,14 +75,11 @@ def explain_trials(params, dataset_name, asv, speaker=None, label='all', num=5, 
     return rows.assign(words=[words for words, _ in explained], importance=[values for _, values in explained])
 
 
-def write_table(path, rows):
-    """One line per word: enrollment speaker, trial utterance, label, score, threshold, position, word, importance."""
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write('enrollment_speaker\ttrial_utterance\tlabel\tscore\tthreshold\tposition\tword\timportance\n')
-        for row in rows.itertuples():
-            for position, (word, value) in enumerate(zip(row.words, row.importance)):
-                f.write(f'{row.enrol}\t{row.utt}\t{row.label}\t{row.score:.6f}\t{row.threshold:.6f}\t{position}\t'
-                        f'{word}\t{value:.6f}\n')
+def word_table(rows):
+    """One row per word: enrol, utt, label, score, threshold, position, word, importance."""
+    table = rows.assign(position=[list(range(len(words))) for words in rows['words']])
+    table = table.explode(['position', 'words', 'importance']).rename(columns={'words': 'word'})
+    return table[['enrol', 'utt', 'label', 'score', 'threshold', 'position', 'word', 'importance']]
 
 
 if __name__ == '__main__':
@@ -113,7 +110,7 @@ if __name__ == '__main__':
     name = f'{sets}_{args.speaker or "all"}_{args.label}'
     title = f'Text attacker: {sets}, enrollment speaker {args.speaker or "all"}, {args.label} trials'
     (out_dir / f'{name}.html').write_text(attribution.render_html(rows.to_dict('records'), title=title), encoding='utf-8')
-    write_table(out_dir / f'{name}.tsv', rows)
+    write_table(out_dir / f'{name}.tsv', word_table(rows), sep='\t', save_header=True)
     for row in rows.itertuples():
         top = sorted(zip(row.words, row.importance), key=lambda pair: -pair[1])[:3]
         print(f'{row.enrol} {row.utt} {row.label} score={row.score:.3f} top words: '

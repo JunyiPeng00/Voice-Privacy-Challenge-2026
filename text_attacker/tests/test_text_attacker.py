@@ -47,7 +47,6 @@ class TextNormTest(unittest.TestCase):
         self.assertEqual(textnorm.normalize("Mr. Smith’s 2 dogs, well-known!", 'upper_letters'), "MR SMITH'S DOGS WELL KNOWN")
         self.assertEqual(textnorm.normalize("L’élève, well-known 3x²", 'lower_letters'), "l'élève well-known x")
         self.assertEqual(textnorm.normalize("As it is, 1.", 'none'), "As it is, 1.")
-        self.assertEqual(textnorm.count_digit_chars("in 1984, 3 men"), 5)
 
 
 class EvaluationTest(unittest.TestCase):

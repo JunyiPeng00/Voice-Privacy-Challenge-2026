@@ -119,7 +119,8 @@ other anonymization systems and for Whisper large-v3 transcripts):
 | ASR transcripts, original speech | 36.05 | 34.99 |
 | ASR transcripts, speech anonymized by the baselines B2, B3, B4, B5 | 35.91 to 37.25 | 34.89 to 36.31 |
 
-The reference files list the number of target and nontarget trials these EERs were computed on. The ASR conditions of Track 2 have not been run on anonymized data yet.
+[reference/eer_reference.tsv](reference/eer_reference.tsv) lists the number of target and nontarget trials the EERs of
+the first table were computed on. The ASR conditions of Track 2 have not been run on anonymized data yet.
 
 ## What the EER measures
 
@@ -191,7 +192,7 @@ important words.
 | `extraction.py` | embeddings from the `text` file of a data directory; stands in for the `SpeakerExtraction` of the ASV evaluation |
 | `attribution.py`, `tools/explain.py` | word importance by occlusion, HTML page |
 | `official.py` | the evaluation loop; `TextASV` is the `ASV` class of the ASV evaluation with the text embeddings |
-| `reference/` | reference EERs, checksums of the heads |
+| `reference/` | reference EERs |
 
 Trial lists, cosine scores, score files and EER are those of the ASV evaluation (`ASV.eer_compute`), and the
 enrollment embeddings are averaged per speaker by its `SpeakerEmbeddings`; as there, a pair listed twice in a trial

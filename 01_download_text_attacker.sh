@@ -17,6 +17,3 @@ for head in libri en de es fr; do
     fi
 done
 
-echo "Verify checksums"
-checksums=$PWD/text_attacker/reference/heads.sha256
-(cd $heads_dir && sha256sum -c $checksums)

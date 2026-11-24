@@ -23,8 +23,3 @@ def normalize(text, mode='none'):
         # other characters are deleted, as when the Track 2 training text was built
         text = ''.join(ch for ch in text.lower() if ch.isalpha() or ch in " '-")
     return ' '.join(text.split())
-
-
-def count_digit_chars(text):
-    """Number of digit characters in a text; they are removed by the letter modes."""
-    return sum(ch.isdigit() for ch in text)

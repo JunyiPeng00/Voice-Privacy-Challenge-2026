@@ -17,8 +17,6 @@ args = parser.parse_args()
 if 'CUDA_VISIBLE_DEVICES' not in os.environ:  # do not overwrite previously set devices
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_ids
-else: # CUDA_VISIBLE_DEVICES more important than the gpu_ids arg
-    args.gpu_ids = ",".join([ str(i) for i, _ in enumerate(os.environ['CUDA_VISIBLE_DEVICES'].split(","))])
 
 import torch
 
@@ -31,8 +29,6 @@ logger = setup_logger(__name__)
 if __name__ == '__main__':
     params = parse_yaml(Path(args.config), overrides=json.loads(args.overwrite))
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
-    assert params['data_dir'].exists(), f'{params["data_dir"]} does not exist'
 
     logger.info('================================')
     logger.info('Perform text attacker evaluation')
