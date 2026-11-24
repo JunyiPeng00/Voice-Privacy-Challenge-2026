@@ -6,8 +6,8 @@ head.safetensors and head.json. It is the only place that unpickles a
 checkpoint, so run it on checkpoints you trust.
 
 Example:
-    python -m text_attacker.tools.export_head --checkpoint best.pt --out-dir exp/text_attacker/heads/libri \
-        --name libri --hyp-norm upper_letters --train-corpus "LibriSpeech train-clean-360" --train-text reference
+    python -m text_attacker.tools.export_head --checkpoint best.pt --out_dir exp/text_attacker/heads/libri \
+        --name libri --hyp_norm upper_letters --train_corpus "LibriSpeech train-clean-360" --train_text reference
 """
 import argparse
 import hashlib
@@ -44,13 +44,13 @@ def head_from_checkpoint(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--checkpoint", required=True, type=Path)
-    parser.add_argument("--out-dir", required=True, type=Path)
+    parser.add_argument("--out_dir", required=True, type=Path)
     parser.add_argument("--name", required=True, help="head name, e.g. libri, en, de")
-    parser.add_argument("--hyp-norm", required=True, choices=["none", "upper_letters", "lower_letters"],
+    parser.add_argument("--hyp_norm", required=True, choices=["none", "upper_letters", "lower_letters"],
                         help="normalization that brings ASR hypotheses to the training text convention")
-    parser.add_argument("--train-corpus", required=True)
-    parser.add_argument("--train-text", required=True, help="reference or the ASR system of the pseudo-transcripts")
-    parser.add_argument("--with-classifier", action="store_true")
+    parser.add_argument("--train_corpus", required=True)
+    parser.add_argument("--train_text", required=True, help="reference or the ASR system of the pseudo-transcripts")
+    parser.add_argument("--with_classifier", action="store_true")
     args = parser.parse_args()
 
     head, config = head_from_checkpoint(args.checkpoint)

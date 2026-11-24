@@ -74,7 +74,7 @@ def check_canary(encoder, head, meta, tolerance=1e-3):
     logger.info(f'Canary check of head "{name}" passed (max deviation {deviation:.1e}).')
 
 
-def _trial_text(source, trial_dir, dataset_name, asr_text_dir, anon_data_suffix, hyp_norm, needed, on_missing):
+def read_trial_text(source, trial_dir, dataset_name, asr_text_dir, anon_data_suffix, hyp_norm, needed, on_missing):
     """Texts of the trial utterances for one source.
 
     Returns (texts, stats), or (None, None) if the hypothesis file is missing and may be skipped.
@@ -183,7 +183,7 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
                                f'reference EERs were computed on {expected[0]} and {expected[1]}: the trial list differs.')
 
             for enrol_source, trial_source in scenarios:
-                trial_text, stats = _trial_text(trial_source, trial_dir, name, eval_params.get('asr_text_dir'),
+                trial_text, stats = read_trial_text(trial_source, trial_dir, name, eval_params.get('asr_text_dir'),
                                                 anon_data_suffix, hyp_norm, needed, on_missing)
                 if trial_text is None:
                     continue

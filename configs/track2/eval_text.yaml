@@ -63,7 +63,7 @@ privacy:
     evaluation:
       results_dir: !ref <exp_dir>/text_attacker/results/<track>
       cache_dir: !ref <exp_dir>/text_attacker/feat_cache # pooled encoder features, keyed by the text
-      asr_text_dir: !ref <exp_dir>/openai/whisper-large-v3 # results_dir of the ASR evaluation
+      asr_text_dir: !ref <exp_dir>/openai/whisper-large-v3 # must equal utility.asr.evaluation.results_dir of eval_pre.yaml
       scenarios: # [enrollment text, trial text]
         - [ref, ref]
         - [ref, asr_orig]

@@ -7,7 +7,8 @@ listening to the voice?*
 The privacy metric is the equal error rate (EER), computed on the official enrollment and trial data with the same
 trial lists and the same EER routine as the ASV evaluation. The text attacker complements the semi-informed ASV
 attacker of the challenge: the ASV attacker listens to the anonymized speech, the text attacker reads what is said.
-Its EER can be read next to the ASV EER of the same anonymization system.
+The attack model differs from the semi-informed one: the enrollment data are original, only the trial data are
+anonymized, and the attacker is not trained on anonymized data.
 
 ## How it works
 
@@ -18,7 +19,8 @@ Its EER can be read next to the ASV EER of the same anonymization system.
 3. The profile of an enrollment speaker is the mean of the embeddings of the speaker's enrollment utterances.
 4. A trial score is the cosine similarity between profile and trial embedding; the metric is the EER.
 
-Only the heads are trained, on original (not anonymized) data. There is one head per dataset:
+Only the heads are trained, on original (not anonymized) data. There is one head per corpus and language (dataset
+prefix):
 
 | Head | Used for | Training data | Training text | Speakers | Objective |
 |---|---|---|---|---|---|
@@ -40,7 +42,9 @@ Install the recipe and download the data of the track as described in the main [
 python run_text_attacker.py --config configs/track1/eval_text.yaml
 python run_text_attacker.py --config configs/track2/eval_text.yaml
 
-# an anonymization system: run anonymization and evaluation first (02_run_track1.sh; the ASR evaluation writes the transcripts), then
+# an anonymization system: run anonymization and evaluation first (the ASR evaluation writes the transcripts), e.g.
+./02_run_track1.sh configs/track1/anon_mcadams.yaml
+# then
 python run_text_attacker.py --config configs/track1/eval_text.yaml --overwrite '{"anon_data_suffix": "_mcadams"}'
 ```
 
@@ -49,7 +53,7 @@ The encoder is downloaded from the Hugging Face hub on first use (2.2 GB). To us
 `--force_compute True` recomputes the cached encoder features.
 
 Use `run_text_attacker.py`, not `run_evaluation.py`: the text attacker is not a step of the official evaluation
-script, and no existing file of the repository was changed to add it.
+script.
 
 ## Attack conditions
 
@@ -68,13 +72,15 @@ be run before `asr_orig` and `asr_anon` are available; until then these conditio
 (`on_missing_hypothesis: error` turns this into an error). A trial utterance without a transcript in an existing ASR
 file is an error; the reference transcript is never used in its place.
 
-`ref` is an upper bound on what the words of a trial reveal: the attacker knows exactly what was said. `asr_anon` is
-what an attacker obtains from the anonymized speech alone. An anonymization system that keeps the linguistic content
-intact is expected to give about the same EER in all three conditions.
+`ref` is what this attacker obtains when it knows exactly what was said. It is not a bound: ASR transcripts can give
+a lower EER (the Track 2 heads were trained on Whisper transcripts), and a stronger text attacker could do better.
+`asr_anon` uses the anonymized speech on the trial side only. For an anonymization system that keeps the linguistic
+content intact, the `asr_anon` EER is expected to be close to the `asr_orig` EER; `ref` can differ from both.
 
 ASR transcripts are brought to the text convention of the head's training data (`hyp_norm: head`): upper case
 letters and apostrophes for `libri`, lower case letters, apostrophes and hyphens for the Track 2 heads. Digits are
-removed and counted in the column `n_digit_chars`. Reference transcripts are used as they are.
+removed and counted in the column `n_digit_chars`. Reference transcripts are used as they are. An empty transcript is
+scored (as the text ".") and counted in `n_empty_hyp`; it is not skipped.
 
 ## Output
 
@@ -103,7 +109,9 @@ EER (%) of the released heads on reference transcripts, official trial lists of 
 | Track 2, Spanish | 28.14 | 26.33 |
 | Track 2, French | 23.67 | 26.10 |
 
-With ASR transcripts as trial text, Track 1 ([reference/eer_reference_asr_track1.tsv](reference/eer_reference_asr_track1.tsv)):
+With transcripts of the ASR evaluation model of the challenge as trial text, Track 1
+([reference/eer_reference_asr_track1.tsv](reference/eer_reference_asr_track1.tsv); the file also has rows for two
+other anonymization systems and for Whisper large-v3 transcripts):
 
 | Trial text | dev | test |
 |---|---|---|
@@ -120,18 +128,25 @@ The trial lists were designed for the ASV evaluation. Enrollment and trial utter
 and in Track 2 from the same recording, so a text attacker is rewarded for recognizing the book and its topic.
 The EER is therefore a property of the protocol and the corpus as much as of the speaker: it shows how much the
 transcripts allow trials to be linked to enrollment speakers under this protocol, not that a person can be
-identified from arbitrary text. Track 2 heads are trained on few speakers (86 to 176 for German, Spanish and
+identified from arbitrary text. The `ref` EER does not depend on the anonymization system; only the difference
+between `asr_anon` and `asr_orig` reflects the anonymization. Track 2 heads are trained on few speakers (86 to 176 for German, Spanish and
 French) and on automatic transcripts.
+
+The training speakers of the heads are disjoint from the enrollment and trial speakers, but the books are not: 57 to
+70 % of the enrollment and trial utterances of Track 1 come from books that are also read, by other speakers, in
+LibriSpeech train-clean-360, and 79 to 100 % of those of Track 2 from books that are also in the Track 2 training
+data. The heads have therefore seen the vocabulary of most evaluation books during training.
 
 Transcripts are truncated to 96 tokens, as when the heads were trained.
 
 ## Which words drive a decision
 
-`tools/explain.py` shows which words of a trial transcript the decision rests on. For every word, the word is deleted
+`tools/explain.py` shows which words of a trial transcript change the score when deleted. For every word, the word is deleted
 from the trial transcript, the transcript is encoded again, and the drop of the trial score is the importance of the
 word (occlusion). A positive value pushes the trial towards "same speaker", a negative value towards "different
 speaker". The values are measured rather than approximated from gradients; they refer to the trial side, the
-enrollment profile is kept fixed.
+enrollment profile is kept fixed. Words that express the same topic share their effect, so single deletions
+underestimate it and the values do not add up to the score; deleting a word also changes the number of pooled tokens.
 
 ```bash
 python -m text_attacker.tools.explain --config configs/track1/eval_text.yaml \
@@ -162,7 +177,7 @@ Most important words of the first target trials of three enrollment speakers of 
 | 7976 | 7976-110124-0000 | 0.09 | reject | merchant (+0.04), long (+0.02), ago (+0.02) |
 | 7976 | 7976-110124-0003 | 0.19 | reject | band (+0.14), street (+0.03), evening (+0.03) |
 
-The EER threshold of `libri_dev` is 0.239. Speakers whose recordings stay within one subject (church history for
+The EER threshold of `libri_dev` is 0.239. In these examples, speakers whose recordings stay within one subject (church history for
 1673, restaurants and cooking for 652) are linked through the vocabulary of that subject; a speaker reading a tale
 (7976) offers little. The same holds for nontarget trials: in `fr_test`, trials of another reader of the same
 novel reach scores of about 0.7 against enrollment speaker 4482, with *navire*, *nautilus* and *canadien* as the most
@@ -176,7 +191,7 @@ important words.
 | `head.py`, `encoder.py` | the trained head and the frozen encoder |
 | `pipeline.py` | transcripts to embeddings (with a feature cache) and to an EER |
 | `attribution.py`, `tools/explain.py` | word importance by occlusion, HTML page |
-| `official.py` | the only module that knows the config format and the directory layout of this repository |
+| `official.py` | config format and directory layout of this repository (also used by `tools/explain.py`) |
 | `tools/export_head.py` | reduces a training checkpoint to a head |
 | `reference/` | reference EERs, checksums of the heads, probe embeddings checked at start-up |
 
