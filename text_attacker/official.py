@@ -172,6 +172,10 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
             if malformed:
                 raise ValueError(f'{enrol_dir / "utt2spk"} has no single speaker for {len(malformed)} utterances of '
                                  f'{enrol_dir / "text"}, e.g. {malformed[:3]}.')
+            missing = [utt for utt in enrol_utt2spk if utt not in enrol_text]
+            if missing:
+                raise ValueError(f'{enrol_dir / "text"} has no transcript for {len(missing)} utterances of '
+                                 f'{enrol_dir / "utt2spk"}, e.g. {missing[:3]}.')
             # as in the ASV evaluation, the trial list is always the one of the original trial directory
             pairs, labels = kaldi_io.read_trials(trial_dir / 'trials')
             needed = sorted({utt for _, utt in pairs})
@@ -215,5 +219,5 @@ def evaluate_text_attacker(params, device, force_compute=False, encoder=None):
     results_df = pd.DataFrame(results)
     print(results_df)
     results_dir.mkdir(parents=True, exist_ok=True)
-    results_df.to_csv(results_dir / f'results{anon_data_suffix}.csv')
+    results_df.to_csv(results_dir / f'results{anon_data_suffix}.csv', index=False)
     return results_df

@@ -18,10 +18,9 @@ import unicodedata
 
 MODES = ("none", "upper_letters", "lower_letters")
 
-# a Unicode letter, i.e. a word character that is neither a digit nor "_"
-_LETTER = r"[^\W\d_]"
-_KEEP_UPPER = re.compile(rf"{_LETTER}|[ ']", re.UNICODE)
-_KEEP_LOWER = re.compile(rf"{_LETTER}|[ '\-]", re.UNICODE)
+# the character filter of the Track 2 training text; it lets numeric characters such as "²" through,
+# which normalize() does not (it keeps letters only)
+_KEEP_LOWER = re.compile(r"[^\W\d_]|[ '\-]", re.UNICODE)
 
 
 def _canonical(text):
@@ -35,12 +34,12 @@ def normalize(text, mode="none"):
     if mode == "upper_letters":
         # other characters become spaces, so that "well-known" stays two words
         text = _canonical(text).upper()
-        kept = "".join(ch if _KEEP_UPPER.fullmatch(ch) else " " for ch in text)
+        kept = "".join(ch if ch.isalpha() or ch in " '" else " " for ch in text)
         return " ".join(kept.split())
     if mode == "lower_letters":
         # other characters are deleted, as when the Track 2 training text was built
         text = _canonical(text).lower()
-        kept = "".join(ch for ch in text if _KEEP_LOWER.fullmatch(ch))
+        kept = "".join(ch for ch in text if ch.isalpha() or ch in " '-")
         return " ".join(kept.split())
     raise ValueError(f"Unknown normalization mode '{mode}', expected one of {MODES}")
 

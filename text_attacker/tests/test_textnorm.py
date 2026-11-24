@@ -28,6 +28,10 @@ class TextNormTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             textnorm.normalize("a", "lower")
 
+    def test_numeric_characters_are_not_letters(self):
+        self.assertEqual(textnorm.normalize("x² ½ Ⅳ a1", "lower_letters"), "x a")
+        self.assertEqual(textnorm.normalize("x² ½ a1", "upper_letters"), "X A")
+
     def test_count_digit_chars(self):
         self.assertEqual(textnorm.count_digit_chars("in 1984, 3 men"), 5)
 

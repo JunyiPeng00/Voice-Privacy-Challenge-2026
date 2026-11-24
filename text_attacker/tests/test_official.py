@@ -142,6 +142,12 @@ class OfficialAdapterTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.run_attacker()
 
+    def test_enrollment_utterance_without_transcript_is_rejected(self):
+        text = Path(self.root, "data/toy_dev_enrolls/text")
+        text.write_text("".join(text.read_text().splitlines(keepends=True)[1:]))
+        with self.assertRaises(ValueError):
+            self.run_attacker()
+
     def test_only_reference_enrollment_is_supported(self):
         self.write("config.yaml", CONFIG.format(root=self.root, suffix="", on_missing="skip").replace("[ref, asr_orig]", "[asr_orig, ref]"))
         with self.assertRaises(ValueError):

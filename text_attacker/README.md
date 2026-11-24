@@ -80,7 +80,7 @@ content intact, the `asr_anon` EER is expected to be close to the `asr_orig` EER
 ASR transcripts are brought to the text convention of the head's training data (`hyp_norm: head`): upper case
 letters and apostrophes for `libri`, lower case letters, apostrophes and hyphens for the Track 2 heads. Digits are
 removed and counted in the column `n_digit_chars`. Reference transcripts are used as they are. An empty transcript is
-scored (as the text ".") and counted in `n_empty_hyp`; it is not skipped.
+scored (as the text ".") and not skipped; empty ASR transcripts are counted in `n_empty_hyp`.
 
 ## Output
 
@@ -154,7 +154,7 @@ python -m text_attacker.tools.explain --config configs/track1/eval_text.yaml \
 ```
 
 The dataset is scored as in the evaluation, and the selected trials are written to
-`exp/text_attacker/explain/<enrolls>-<trials>__<trial_text>_<speaker>_<label>.html` (the transcript of each trial with its
+`exp/text_attacker/explain/<enrolls>-<trials>__<trial_text>[<suffix>]_<speaker>_<label>.html` (the transcript of each trial with its
 words tinted by importance, the label and the decision at the EER threshold of the dataset) and `.tsv` (one line
 per word). Options: `--speaker` (enrollment speaker, all if not given), `--label target|nontarget|all`,
 `--order list|score|random`, `--num`, `--trial_text ref|asr_orig|asr_anon`.
