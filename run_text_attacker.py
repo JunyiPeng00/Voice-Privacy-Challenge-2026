@@ -1,9 +1,9 @@
-# Evaluation of the text attacker: speaker verification from transcripts only.
-# Usage and the meaning of the numbers are described in text_attacker/README.md.
+# Evaluation of the text attacker (speaker verification from transcripts only), see text_attacker/README.md
 # We need to set CUDA_VISIBLE_DEVICES before we import Pytorch, so we will read all arguments directly on startup
 import os
 import json
 import time
+import itertools
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -30,9 +30,22 @@ if __name__ == '__main__':
     params = parse_yaml(Path(args.config), overrides=json.loads(args.overwrite))
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
+    eval_data_dir = params['data_dir']
+    anon_suffix = params['anon_data_suffix']
+
     logger.info('================================')
     logger.info('Perform text attacker evaluation')
     logger.info('================================')
     start_time = time.time()
-    evaluate_text_attacker(params=params, device=device, force_compute=args.force_compute.lower() == 'true')
+    eval_data_name = params['privacy']['text_attacker']['dataset_name']
+    eval_pairs = []
+    for name in eval_data_name:
+        for d in params['datasets']:
+            if d['name'] != name:
+                continue
+            eval_pairs.extend([(f'{d["data"]}{enroll}', f'{d["data"]}{trial}')
+                               for enroll, trial in itertools.product(d['enrolls'], d['trials'])])
+    evaluate_text_attacker(eval_datasets=eval_pairs, eval_data_dir=eval_data_dir,
+                           params=params['privacy']['text_attacker'], device=device, anon_data_suffix=anon_suffix,
+                           force_compute=args.force_compute.lower() == 'true')
     logger.info("--- Text attacker evaluation time: %f min ---" % (float(time.time() - start_time) / 60))

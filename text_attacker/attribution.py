@@ -9,7 +9,7 @@ transcript is encoded again,
 A positive value means the word pushes the trial towards "same speaker", a
 negative value towards "different speaker". The values are measured, not
 approximated from gradients, and they refer to the trial side only: the
-enrollment profile is kept fixed.
+embedding of the enrollment speaker is kept fixed.
 """
 import html
 
@@ -20,11 +20,11 @@ from sklearn.metrics.pairwise import cosine_distances
 
 
 @torch.inference_mode()
-def word_occlusion(encoder, head, profile, text, max_length=96):
-    """Importance of every word of ``text`` for its score against ``profile``.
+def word_occlusion(encoder, head, enrol_vector, text, max_length=96):
+    """Importance of every word of ``text`` for its score against ``enrol_vector``.
 
     Args:
-        profile: embedding of the enrollment speaker
+        enrol_vector: embedding of the enrollment speaker
         text: trial transcript; words are separated by whitespace
 
     Returns:
@@ -34,7 +34,7 @@ def word_occlusion(encoder, head, profile, text, max_length=96):
     words = text.split()
     variants = [text] + [' '.join(words[:i] + words[i + 1:]) for i in range(len(words))]
     pooled = torch.from_numpy(encoder.pool(variants, max_length=max_length)).to(encoder.device)
-    scores = 1 - cosine_distances(X=profile[None], Y=head.embed(pooled).cpu())[0]
+    scores = 1 - cosine_distances(X=enrol_vector[None], Y=head.embed(pooled).cpu())[0]
     return words, scores[0] - scores[1:]
 
 
@@ -54,7 +54,7 @@ def render_html(rows, title="Text attacker: word importance"):
     """
     body = []
     for row in rows:
-        scale = np.abs(row["importance"]).max()
+        scale = np.abs(row["importance"]).max(initial=0.0)
         words = " ".join(
             f'<span style="background:{_tint(value, scale)}" title="{value:+.4f}">{html.escape(word)}</span>'
             for word, value in zip(row["words"], row["importance"]))

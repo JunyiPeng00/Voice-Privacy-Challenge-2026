@@ -3,6 +3,8 @@
 
 set -e
 
+source env.sh
+
 repo=https://huggingface.co/JYP2024/vpc2026-text-attacker/resolve/b1ade524323405b1595508a4536adc5af956267b
 heads_dir=exp/text_attacker/heads
 

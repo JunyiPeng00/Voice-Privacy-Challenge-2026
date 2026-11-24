@@ -1,7 +1,10 @@
 """A tiny tokenizer and encoder, so that tests need neither a download nor a GPU."""
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import torch
+from safetensors.torch import save_file
 
 
 class FakeBatch(dict):
@@ -27,3 +30,14 @@ class FakeModel(torch.nn.Module):
 
     def forward(self, input_ids, attention_mask):
         return SimpleNamespace(last_hidden_state=self.embedding(input_ids))
+
+
+def save_head(head_dir, head, meta):
+    """Write ``head.safetensors`` and ``head.json`` (``meta`` plus the layer sizes) to ``head_dir``."""
+    head_dir = Path(head_dir)
+    head_dir.mkdir(parents=True, exist_ok=True)
+    save_file(head.state_dict(), str(head_dir / 'head.safetensors'))
+    sizes = {'hidden': head.project[0].in_features, 'bottleneck': head.project[0].out_features,
+             'embedding': head.project[2].out_features}
+    with open(head_dir / 'head.json', 'w', encoding='utf-8') as f:
+        json.dump({**meta, **sizes}, f)

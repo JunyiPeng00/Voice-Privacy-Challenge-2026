@@ -40,12 +40,13 @@ def explain_trials(params, dataset_name, asv, speaker=None, label='all', num=5, 
         DataFrame with one row per trial and the columns enrol_set, trial_set, enrol, utt, label, score, threshold,
         words, importance; the decision is score > threshold
     """
-    dataset = next(d for d in params['datasets'] if d['name'] == dataset_name)
-    enrol_dir = params['data_dir'] / f'{dataset["data"]}{enrolls or dataset["enrolls"][0]}'
-    trial_name = f'{dataset["data"]}{trials or dataset["trials"][0]}'
-    test_dir = trial_text_dir(trial_source, params['data_dir'], trial_name, dataset_name,
+    dataset = [d for d in params['datasets'] if d['name'] == dataset_name][0]
+    eval_data_dir = params['data_dir']
+    enrol_dir = eval_data_dir / f'{dataset["data"]}{enrolls or dataset["enrolls"][0]}'
+    trial = f'{dataset["data"]}{trials or dataset["trials"][0]}'
+    test_dir = trial_text_dir(trial_source, eval_data_dir, trial,
                               params['privacy']['text_attacker']['evaluation']['asr_text_dir'], params['anon_data_suffix'])
-    trials_file = params['data_dir'] / trial_name / 'trials'
+    trials_file = eval_data_dir / trial / 'trials'
 
     # score the whole dataset to get the EER threshold the decisions refer to
     asv.eer_compute(enrol_dir=enrol_dir, test_dir=test_dir, trial_runs_file=trials_file)
@@ -67,10 +68,10 @@ def explain_trials(params, dataset_name, asv, speaker=None, label='all', num=5, 
     rows = rows.head(num).assign(enrol_set=enrol_dir.name, trial_set=test_dir.name, threshold=threshold)
 
     extractor = asv.extractor
-    profiles = extractor.extract_speakers(enrol_dir, emb_level='spk')
+    enrol_vectors = extractor.extract_speakers(enrol_dir, emb_level='spk')
     text = extractor.read_text(test_dir)
     explained = [attribution.word_occlusion(extractor.encoder, extractor.head,
-                                            profiles.get_embedding_for_identifier(enrol), text[utt], extractor.max_length)
+                                            enrol_vectors.get_embedding_for_identifier(enrol), text[utt], extractor.max_length)
                  for enrol, utt in zip(rows['enrol'], rows['utt'])]
     return rows.assign(words=[words for words, _ in explained], importance=[values for _, values in explained])
 
@@ -78,7 +79,7 @@ def explain_trials(params, dataset_name, asv, speaker=None, label='all', num=5, 
 def word_table(rows):
     """One row per word: enrol, utt, label, score, threshold, position, word, importance."""
     table = rows.assign(position=[list(range(len(words))) for words in rows['words']])
-    table = table.explode(['position', 'words', 'importance']).rename(columns={'words': 'word'})
+    table = table.explode(['position', 'words', 'importance']).rename(columns={'words': 'word'}).dropna(subset=['position'])
     return table[['enrol', 'utt', 'label', 'score', 'threshold', 'position', 'word', 'importance']]
 
 

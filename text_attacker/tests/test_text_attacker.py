@@ -6,10 +6,9 @@ from unittest import mock
 import numpy as np
 import torch
 
-from text_attacker import attribution, official, textnorm
-from text_attacker.encoder import PooledEncoder
-from text_attacker.head import Head, load_head, save_head
-from text_attacker.tests.fakes import FakeModel, FakeTokenizer
+from text_attacker import attribution, encoder, official, textnorm
+from text_attacker.head import Head, load_head
+from text_attacker.tests.fakes import FakeModel, FakeTokenizer, save_head
 from text_attacker.tools.explain import explain_trials
 from utils import parse_yaml
 
@@ -27,15 +26,15 @@ privacy:
     dataset_name: [toy_dev]
     backbone: fake
     backbone_revision: none
-    heads:
-      toy:
-        head_dir: !ref <exp_dir>/heads/toy
     evaluation:
       results_dir: !ref <exp_dir>/text_attacker/results
       asr_text_dir: !ref <exp_dir>/asr
       trial_text: {trial_text}
       hyp_norm: head
       eval_batchsize: 2
+      heads:
+        toy:
+          head_dir: !ref <exp_dir>/heads/toy
 """
 
 
@@ -62,7 +61,9 @@ class EvaluationTest(unittest.TestCase):
         torch.manual_seed(0)
         save_head(self.root / 'exp/heads/toy', Head(hidden=16, bottleneck=8, embedding=4),
                   {'name': 'toy', 'max_length': 96, 'hyp_norm': 'upper_letters'})
-        self.encoder = PooledEncoder(backbone='fake', tokenizer=FakeTokenizer(), model=FakeModel())
+        with mock.patch.object(encoder.AutoTokenizer, 'from_pretrained', return_value=FakeTokenizer()), \
+                mock.patch.object(encoder.AutoModel, 'from_pretrained', return_value=FakeModel()):
+            self.encoder = encoder.PooledEncoder(backbone='fake')
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -72,8 +73,12 @@ class EvaluationTest(unittest.TestCase):
         return parse_yaml(self.root / 'config.yaml')
 
     def run_attacker(self, **config):
+        params = self.params(**config)
         with mock.patch.object(official, 'load_encoder', return_value=self.encoder):
-            return official.evaluate_text_attacker(self.params(**config), device='cpu')
+            return official.evaluate_text_attacker(eval_datasets=[('toy_dev_enrolls', 'toy_dev_trials_mixed')],
+                                                   eval_data_dir=params['data_dir'],
+                                                   params=params['privacy']['text_attacker'], device='cpu',
+                                                   anon_data_suffix=params['anon_data_suffix'])
 
     def test_reference_and_original_asr(self):
         results = self.run_attacker().set_index('trial_text')
@@ -111,9 +116,9 @@ class EvaluationTest(unittest.TestCase):
         self.assertEqual(list(zip(rows['enrol'], rows['utt'])), [('s1', 't1')])
         self.assertEqual(rows['words'].iloc[0], ['THE', 'SHIP', 'SAILED'])
 
-        head, profile = asv.extractor.head, torch.ones(4)
-        score = lambda text: torch.cosine_similarity(profile, head.embed(torch.from_numpy(self.encoder.pool([text])))[0], dim=0).item()
-        words, importance = attribution.word_occlusion(self.encoder, head, profile, 'THE SHIP')
+        head, enrol_vector = asv.extractor.head, torch.ones(4)
+        score = lambda text: torch.cosine_similarity(enrol_vector, head.embed(torch.from_numpy(self.encoder.pool([text])))[0], dim=0).item()
+        words, importance = attribution.word_occlusion(self.encoder, head, enrol_vector, 'THE SHIP')
         np.testing.assert_allclose(importance, [score('THE SHIP') - score('SHIP'), score('THE SHIP') - score('THE')],
                                    atol=1e-6)
         self.assertIn('SHIP', attribution.render_html(rows.to_dict('records')))

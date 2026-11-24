@@ -6,27 +6,23 @@ half precision changes the EER of the released heads by several points.
 """
 import numpy as np
 import torch
+from transformers import AutoModel, AutoTokenizer
 
 EMPTY_TEXT = '.'  # stands in for an empty transcript, as when the released heads were trained
 
 
 class PooledEncoder:
-    def __init__(self, backbone='BAAI/bge-m3', revision=None, device='cpu', tokenizer=None, model=None):
+    def __init__(self, backbone='BAAI/bge-m3', revision=None, device='cpu'):
         """
         Args:
             backbone: Hugging Face model id or local directory
             revision: commit of the model on the hub
             device: device the encoder runs on
-            tokenizer, model: ready objects to use instead of loading ``backbone`` (for tests)
         """
-        self.backbone = str(backbone)
         self.device = torch.device(device)
-        if model is None:
-            from transformers import AutoModel, AutoTokenizer
-            tokenizer = AutoTokenizer.from_pretrained(self.backbone, revision=revision)
-            model = AutoModel.from_pretrained(self.backbone, revision=revision, torch_dtype=torch.float32)
-        self.tokenizer = tokenizer
-        self.model = model.to(self.device).eval()
+        self.tokenizer = AutoTokenizer.from_pretrained(str(backbone), revision=revision)
+        self.model = AutoModel.from_pretrained(str(backbone), revision=revision, torch_dtype=torch.float32)
+        self.model = self.model.to(self.device).eval()
 
     @torch.inference_mode()
     def pool(self, texts, max_length=96, batch_size=32):

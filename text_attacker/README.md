@@ -16,8 +16,9 @@ anonymized, and the attacker is not trained on anonymized data.
    the last-layer token states are mean-pooled into one 1024-dimensional vector.
 2. A small trained *head* (`Linear(1024, 512)`, ReLU, `Linear(512, 256)`, L2 normalization) maps this vector to a
    speaker embedding.
-3. The profile of an enrollment speaker is the mean of the embeddings of the speaker's enrollment utterances.
-4. A trial score is the cosine similarity between profile and trial embedding; the metric is the EER.
+3. The embedding of an enrollment speaker is the mean of the embeddings of the speaker's enrollment utterances.
+4. A trial score is the cosine similarity between the enrollment speaker embedding and the trial embedding; the
+   metric is the EER.
 
 Only the heads are trained, on original (not anonymized) data. There is one head per corpus and language (dataset
 prefix):
@@ -52,7 +53,7 @@ python run_text_attacker.py --config configs/track1/eval_text.yaml \
 The encoder is downloaded from the Hugging Face hub on first use (2.2 GB). To use a local copy, set
 `text_backbone` to its directory. The evaluation runs on CPU (a few minutes per dataset on 32 cores) or GPU.
 The embeddings of each data directory are stored; `--force_compute True` recomputes them (needed after the
-transcripts of a directory have changed).
+transcripts of a directory or `hyp_norm` have changed).
 
 Use `run_text_attacker.py`, not `run_evaluation.py`: the text attacker is not a step of the official evaluation
 script.
@@ -89,12 +90,12 @@ exp/text_attacker/results/<track>/
     results<anon_data_suffix>.csv                 one row per dataset and condition
     <enrolls>-<trial text directory>/scores       enrollment speaker, trial utterance, score
     <enrolls>-<trial text directory>/EER
-    cosine_out/emb_text/<directory>/              stored embeddings
+    cosine_out/emb_text/<directory>/utt-level/    stored embeddings
 ```
 
 The trial text directory is `<dataset>_trials_mixed` for `ref`, `<dataset>_asr` for `asr_orig` and
 `<dataset>_asr<anon_data_suffix>` for `asr_anon`, e.g. `libri_dev_enrolls-libri_dev_asr_mcadams`. Columns of the csv:
-`dataset, split, gender, trial_text, EER`. Nothing is written to `data/`, to the ASV, ASR or SER result
+the row index, then `dataset, split, gender, trial_text, EER`. Nothing is written to `data/`, to the ASV, ASR or SER result
 directories, or to `exp/results_summary` (`result_for_rank`, `result_for_submission`).
 
 ## Reference results
@@ -146,7 +147,7 @@ Transcripts are truncated to 96 tokens, as when the heads were trained.
 from the trial transcript, the transcript is encoded again, and the drop of the trial score is the importance of the
 word (occlusion). A positive value pushes the trial towards "same speaker", a negative value towards "different
 speaker". The values are measured rather than approximated from gradients; they refer to the trial side, the
-enrollment profile is kept fixed. Words that express the same topic share their effect, so single deletions
+enrollment speaker embedding is kept fixed. Words that express the same topic share their effect, so single deletions
 underestimate it and the values do not add up to the score; deleting a word also changes the number of pooled tokens.
 
 ```bash

@@ -1,6 +1,3 @@
-# Text attacker (speaker verification from transcripts only), Track 1.
-# Run with: python run_text_attacker.py --config configs/track1/eval_text.yaml
-# See text_attacker/README.md.
 data_dir: data
 exp_dir: exp
 track: track1
@@ -10,8 +7,6 @@ anon_data_suffix: '' # suffix of the anonymized data, e.g. _mcadams; needed for 
 trial_text: [ref] # ref, asr_orig, asr_anon; the ASR transcripts are written by the ASR evaluation of run_evaluation.py
 
 text_backbone: BAAI/bge-m3 # Hugging Face model id or local directory
-text_backbone_revision: 5617a9f61b028005a4858fdac845db406aefb181
-hyp_norm: head # normalization of ASR transcripts: head (the convention the head was trained on), none, upper_letters or lower_letters
 
 datasets:
   - name: libri_dev
@@ -27,14 +22,13 @@ privacy:
   text_attacker:
     dataset_name: [libri_dev, libri_test]
     backbone: !ref <text_backbone>
-    backbone_revision: !ref <text_backbone_revision>
-    heads: # one head per dataset prefix
-      libri:
-        head_dir: !ref <exp_dir>/text_attacker/heads/libri
-
+    backbone_revision: 5617a9f61b028005a4858fdac845db406aefb181
     evaluation:
       results_dir: !ref <exp_dir>/text_attacker/results/<track>
       asr_text_dir: !ref <exp_dir>/asr # must equal utility.asr.evaluation.results_dir of eval_pre.yaml
       trial_text: !ref <trial_text>
-      hyp_norm: !ref <hyp_norm>
+      hyp_norm: head # normalization of ASR transcripts: head (the convention the head was trained on), none, upper_letters or lower_letters
       eval_batchsize: 32
+      heads: # one head per dataset prefix
+        libri:
+          head_dir: !ref <exp_dir>/text_attacker/heads/libri

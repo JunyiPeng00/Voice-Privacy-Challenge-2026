@@ -10,7 +10,7 @@ from pathlib import Path
 
 import torch.nn as nn
 import torch.nn.functional as F
-from safetensors.torch import load_file, save_file
+from safetensors.torch import load_file
 
 
 class Head(nn.Module):
@@ -21,17 +21,6 @@ class Head(nn.Module):
     def embed(self, pooled):
         """Pooled encoder features [N, hidden] -> unit-length speaker embeddings [N, embedding]."""
         return F.normalize(self.project(pooled), dim=-1)
-
-
-def save_head(head_dir, head, meta):
-    """Write ``head.safetensors`` and ``head.json`` (``meta`` plus the layer sizes) to ``head_dir``."""
-    head_dir = Path(head_dir)
-    head_dir.mkdir(parents=True, exist_ok=True)
-    save_file(head.state_dict(), str(head_dir / 'head.safetensors'))
-    sizes = {'hidden': head.project[0].in_features, 'bottleneck': head.project[0].out_features,
-             'embedding': head.project[2].out_features}
-    with open(head_dir / 'head.json', 'w', encoding='utf-8') as f:
-        json.dump({**meta, **sizes}, f, indent=2, ensure_ascii=False)
 
 
 def load_head(head_dir, device='cpu'):

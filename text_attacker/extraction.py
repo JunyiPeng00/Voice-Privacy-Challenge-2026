@@ -9,7 +9,9 @@ import torch
 
 from evaluation.privacy.asv.speaker_embeddings import SpeakerEmbeddings
 from text_attacker import textnorm
-from utils import read_kaldi_format
+from utils import read_kaldi_format, setup_logger
+
+logger = setup_logger(__name__)
 
 
 class TextExtraction:
@@ -44,16 +46,18 @@ class TextExtraction:
     @torch.inference_mode()
     def extract_speakers(self, dataset_path, emb_level='utt'):
         if dataset_path not in self.extracted:
-            results_dir = self.results_dir / dataset_path.name
+            results_dir = self.results_dir / dataset_path.name / 'utt-level'
             embeddings = SpeakerEmbeddings(vec_type='text', emb_level='utt')
             if (results_dir / 'speaker_vectors.pt').exists() and not self.force_compute:
+                logger.info('No speaker extraction necessary; load existing embeddings instead...')
                 embeddings.load_vectors(results_dir)
             else:
                 text = self.read_text(dataset_path)
+                logger.info(f'Extract embeddings of {len(text)} utterances')
                 utts = list(text)
                 pooled = self.encoder.pool(list(text.values()), max_length=self.max_length, batch_size=self.batch_size)
                 vectors = self.head.embed(torch.from_numpy(pooled).to(self.encoder.device)).cpu()
-                speakers = utts
+                speakers = utts  # the directories of the ASR evaluation have no utt2spk
                 if emb_level == 'spk':
                     utt2spk = read_kaldi_format(dataset_path / 'utt2spk')
                     speakers = [utt2spk[utt] for utt in utts]
